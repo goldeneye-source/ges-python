@@ -1,10 +1,11 @@
 from GEAi import ActivityId
-from . import PYSchedule, Sched, Cond
+from GEAiSched import Sched
+from . import BaseSchedule, Cond
 from ..Tasks import Task
 
-class CombatFaceOverride( PYSchedule ):
+class CombatFaceOverride( BaseSchedule ):
 	def __init__( self ):
-		PYSchedule.__init__( self )
+		BaseSchedule.__init__( self )
 
 		self.AddTask( Task.SET_FAIL_SCHEDULE, Sched.ESTABLISH_LINE_OF_FIRE )
 		self.AddTask( Task.STOP_MOVING )
@@ -16,9 +17,9 @@ class CombatFaceOverride( PYSchedule ):
 		self.AddInterrupt( Cond.NEW_ENEMY )
 		self.AddInterrupt( Cond.ENEMY_DEAD )
 
-class EstablishLOFFallback( PYSchedule ):
+class EstablishLOFFallback( BaseSchedule ):
 	def __init__( self ):
-		PYSchedule.__init__( self )
+		BaseSchedule.__init__( self )
 
 		self.AddTask( Task.SET_ROUTE_SEARCH_TIME, 2 )
 		self.AddTask( Task.GET_CHASE_PATH_TO_ENEMY )
@@ -28,9 +29,9 @@ class EstablishLOFFallback( PYSchedule ):
 		self.AddInterrupt( Cond.CAN_RANGE_ATTACK1 )
 		self.AddInterrupt( Cond.CAN_MELEE_ATTACK1 )
 
-class BotSeekEnemy( PYSchedule ):
+class BotSeekEnemy( BaseSchedule ):
 	def __init__( self ):
-		PYSchedule.__init__( self )
+		BaseSchedule.__init__( self )
 
 		self.AddTask( Task.SET_FAIL_SCHEDULE, Sched.BOT_PATROL )
 		self.AddTask( Task.SET_ROUTE_SEARCH_TIME, 2 )
@@ -46,9 +47,9 @@ class BotSeekEnemy( PYSchedule ):
 		self.AddInterrupt( Cond.HEAR_COMBAT )
 		self.AddInterrupt( Cond.GES_CLOSE_TO_ARMOR )
 
-class BotEngageEnemy( PYSchedule ):
+class BotEngageEnemy( BaseSchedule ):
 	def __init__( self ):
-		PYSchedule.__init__( self )
+		BaseSchedule.__init__( self )
 
 		self.AddTask( Task.SET_FAIL_SCHEDULE, Sched.ESTABLISH_LINE_OF_FIRE )
 		self.AddTask( Task.STORE_POSITION_IN_SAVEPOSITION )
@@ -65,9 +66,9 @@ class BotEngageEnemy( PYSchedule ):
 		self.AddInterrupt( Cond.ENEMY_UNREACHABLE )
 		self.AddInterrupt( Cond.ENEMY_WENT_NULL )
 
-class BotPatrol( PYSchedule ):
+class BotPatrol( BaseSchedule ):
 	def __init__( self ):
-		PYSchedule.__init__( self )
+		BaseSchedule.__init__( self )
 
 		self.AddTask( Task.SET_ROUTE_SEARCH_TIME, 2 )
 		self.AddTask( Task.GET_PATH_TO_RANDOM_NODE, 2048 )
@@ -88,9 +89,9 @@ class BotPatrol( PYSchedule ):
 		self.AddInterrupt( Cond.GES_CLOSE_TO_ARMOR )
 		self.AddInterrupt( Cond.GES_CLOSE_TO_WEAPON )
 
-class BotSeekWeapon( PYSchedule ):
+class BotSeekWeapon( BaseSchedule ):
 	def __init__( self ):
-		PYSchedule.__init__( self )
+		BaseSchedule.__init__( self )
 
 		self.AddTask( Task.SET_FAIL_SCHEDULE, Sched.BOT_PATROL )
 		self.AddTask( Task.SET_ROUTE_SEARCH_TIME, 2 )
@@ -104,9 +105,9 @@ class BotSeekWeapon( PYSchedule ):
 		self.AddInterrupt( Cond.GES_ENEMY_CLOSE )
 		self.AddInterrupt( Cond.GES_ENEMY_DANGEROUS )
 
-class BotSeekAmmo( PYSchedule ):
+class BotSeekAmmo( BaseSchedule ):
 	def __init__( self ):
-		PYSchedule.__init__( self )
+		BaseSchedule.__init__( self )
 
 		self.AddTask( Task.SET_FAIL_SCHEDULE, Sched.BOT_PATROL )
 		self.AddTask( Task.SET_ROUTE_SEARCH_TIME, 2 )
@@ -120,9 +121,9 @@ class BotSeekAmmo( PYSchedule ):
 		self.AddInterrupt( Cond.HEAVY_DAMAGE )
 		self.AddInterrupt( Cond.GES_ENEMY_DANGEROUS )
 
-class BotSeekArmor( PYSchedule ):
+class BotSeekArmor( BaseSchedule ):
 	def __init__( self ):
-		PYSchedule.__init__( self )
+		BaseSchedule.__init__( self )
 
 		self.AddTask( Task.SET_FAIL_SCHEDULE, Sched.BOT_PATROL )
 		self.AddTask( Task.SET_ROUTE_SEARCH_TIME, 2 )
@@ -136,9 +137,9 @@ class BotSeekArmor( PYSchedule ):
 		self.AddInterrupt( Cond.GES_ENEMY_DANGEROUS )
 		self.AddInterrupt( Cond.GES_ENEMY_CLOSE )
 
-class BotSeekToken( PYSchedule ):
+class BotSeekToken( BaseSchedule ):
 	def __init__( self ):
-		PYSchedule.__init__( self )
+		BaseSchedule.__init__( self )
 
 		self.AddTask( Task.SET_FAIL_SCHEDULE, Sched.BOT_PATROL )
 		self.AddTask( Task.SET_ROUTE_SEARCH_TIME, 2 )

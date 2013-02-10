@@ -253,15 +253,17 @@ class CBaseNPC:
 		'''
 		return bool
 
-class CBaseSchedule:
+class ISchedule:
+	name = str
+	id_ = int
+	
 	def __init__( self ):
 		return
 
-	def RegisterInterrupt( self, condition ):
+	def Register( self ):
 		'''
-		@type condition: str
+		Registers this schedule with the Ai System
 		'''
-		return
 
 class CAiManager:
 	def __init__( self ):

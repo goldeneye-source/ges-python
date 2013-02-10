@@ -1,8 +1,14 @@
-# # NOTE: This must be first to prevent circular imports
-class ISchedule( object ):
+import GEAiCond, GEAiSched
+from GEAi import ISchedule
+
+class BaseSchedule( ISchedule ):
 	def __init__( self, name=None, id_= -1 ):
-		self.name = name or self.__name__
-		self.id_ = int( id_ )
+		# Always have a name
+		if name is None:
+			name = self.__name__
+
+		ISchedule.__init__( self, name, int( id_ ) )
+
 		self.tasks = []
 		self.interrupts = []
 
@@ -21,9 +27,6 @@ class ISchedule( object ):
 	def GetInterrupts( self ):
 		return self.interrupts
 
-# Import our definitions
-import GEAiCond, GEAiSched
-
 # Define the global conditions (interrupts)
 class Cond( GEAiCond.Cond ):
 	GES_CLOSE_TO_ARMOR	 = None
@@ -40,20 +43,19 @@ class Cond( GEAiCond.Cond ):
 	GES_HIGH_ARMOR 		 = None
 	GES_LOW_ARMOR 		 = None
 
+import CommonSchedules
+
 # Define the global schedules
 class Sched( GEAiSched.Sched ):
-	_module		 	 	 = "Ai.Schedules.CommonSchedules"
-	_order			 	 = [ "ESTABLISH_LINE_OF_FIRE", "COMBAT_FACE" ]
-
 	# Override HL2 schedules that misbehave (these are loaded FIRST)
-	ESTABLISH_LINE_OF_FIRE = "EstablishLOFFallback"
-	COMBAT_FACE	 		 = "CombatFaceOverride"
+	ESTABLISH_LINE_OF_FIRE = CommonSchedules.EstablishLOFFallback()
+	COMBAT_FACE	 		 = CommonSchedules.CombatFaceOverride()
 
 	# Bot specific schedules
-	BOT_PATROL 			 = "BotPatrol"
-	BOT_SEEK_ENEMY 		 = "BotSeekEnemy"
-	BOT_ENGAGE_ENEMY	 = "BotEngageEnemy"
-	BOT_SEEK_WEAPON 	 = "BotSeekWeapon"
-	BOT_SEEK_AMMO 		 = "BotSeekAmmo"
-	BOT_SEEK_ARMOR 		 = "BotSeekArmor"
-	BOT_SEEK_TOKEN		 = "BotSeekToken"
+	BOT_PATROL 			 = CommonSchedules.BotPatrol()
+	BOT_SEEK_ENEMY 		 = CommonSchedules.BotSeekEnemy()
+	BOT_ENGAGE_ENEMY	 = CommonSchedules.BotEngageEnemy()
+	BOT_SEEK_WEAPON 	 = CommonSchedules.BotSeekWeapon()
+	BOT_SEEK_AMMO 		 = CommonSchedules.BotSeekAmmo()
+	BOT_SEEK_ARMOR 		 = CommonSchedules.BotSeekArmor()
+	BOT_SEEK_TOKEN		 = CommonSchedules.BotSeekToken()
