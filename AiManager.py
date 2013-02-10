@@ -1,6 +1,6 @@
 from GESFuncs  import *
 from GEGlobal import PY_BASE_DIR
-import sys, reimport
+import sys, traceback, reimport
 import GEAi
 import Ai, Ai.Schedules, Ai.Tasks, Ai.Utils
 
@@ -73,23 +73,15 @@ class PYAiManager( GEAi.CAiManager ):
 			else:
 				task_module = npc.__module__
 
-			if sched_class and "_module" in sched_class.__dict__:
-				sched_module = sched_class.__dict__["_module"]
-			else:
-				sched_module = npc.__module__
 		else:
 			task_class = Ai.Tasks.Task
 			sched_class = Ai.Schedules.Sched
 			cond_class = Ai.Schedules.Cond
 
 			task_module = task_class.__dict__["_module"]
-			sched_module = sched_class.__dict__["_module"]
 
 		if task_module not in sys.modules:
 			__import__( task_module, globals(), locals() )
-
-		if sched_module not in sys.modules:
-			__import__( sched_module, globals(), locals() )
 
 		# Load tasks registered in Ai.Tasks.Task or the passed NPC
 		items = task_class.__dict__.items() if task_class else []
@@ -136,24 +128,14 @@ class PYAiManager( GEAi.CAiManager ):
 						items.append( ( x, getattr( sched_class, x ) ) )
 			items.extend( sched_class.__dict__.items() )
 
-		for sched, value in items:
-			if type( value ) is str and not sched.startswith( "_" ):
-				print "Trying to convert schedule %s..." % value
-				try:
-					obj = getattr( sys.modules[sched_module], value )
-					if issubclass( obj, Ai.Schedules.PYSchedule ):
-						s = obj()
-						s.name = "SCHED_" + sched
-						id_ = self.RegisterSchedule( s )
-						if id_ != -1:
-							# Link the ID with the Sched class
-							setattr( sched_class, sched, id_ )
-					else:
-						setattr( sched_class, sched, Ai.Schedules.Sched.NO_SELECTION )
-						GEUtil.Warning( "Failed to create schedule `%s` because %s.%s must inherit Ai.Schedules.PySchedule!\n" % ( sched, sched_module, value ) )
-				except AttributeError:
-					setattr( sched_class, sched, Ai.Schedules.Sched.NO_SELECTION )
-					PrintError( "Failed to create schedule `%s` because %s.%s is not defined!\n" % ( sched, sched_module, value ) )
+		for name, sched in items:
+			try:
+				if issubclass( sched.__class__, Ai.Schedules.BaseSchedule ):
+					GEUtil.DevMsg( "Registering schedule: %s\n" % name )
+					sched.Register()
+			except:
+				GEUtil.Warning( "Failed to register schedule: %s\n" % name )
+				print traceback.print_exc( file=sys.stderr )
 
 pyAiMangObj = None
 

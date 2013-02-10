@@ -3,7 +3,9 @@ import GEEntity
 def ClientPrint( player_or_team, dest, msg, param1=None, param2=None, param3=None, param4=None ):
 	'''
 	Post a message in the destination specified using GEGlobal.HUD_PRINT*
-	Set player_or_team to None to print to all players
+	Set 'player_or_team' to None to print to all players
+	
+	'param1' through 'param4' are used to fill in localization slots in 'msg'
 	
 	@type player_or_team: GEPlayer.CGEPlayer or Team Number
 	@type dest: int
@@ -26,6 +28,11 @@ def HudMessage( player_or_team, msg, x, y, color=GEUtil.Color( 255, 255, 255, 25
 	
 	You can use the color hints defined here: http://wiki.geshl2.com/index.php/HudColor
 	Use ^| to stop the custom color
+	
+	The 'channel' parameter can be any number from 1 to 5 to indicate a shared message
+	channel that will overwrite any existing message to prevent text overlap. Leave it 
+	undefined or set to -1 to use the rotating channels that will provide a new channel on
+	each function call.
 	
 	@type player_or_team: GEPlayer.CGEPlayer or Team Number
 	@type msg: str
@@ -53,10 +60,24 @@ def Msg( msg ):
 	
 	@type msg: str
 	'''
+	
+def DevMsg( msg ):
+	'''
+	Write a message to the console, "developer 1" must be enabled to see it!
+	
+	@type msg: str
+	'''
 
 def Warning( msg ):
 	'''
 	Write a warning to the console
+	
+	@type msg: str
+	'''
+
+def DevWarning( msg ):
+	'''
+	Write a warning to the console, "developer 1" must be enabled to see it!
 	
 	@type msg: str
 	'''

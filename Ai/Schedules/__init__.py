@@ -2,12 +2,13 @@ import GEAiCond, GEAiSched
 from GEAi import ISchedule
 
 class BaseSchedule( ISchedule ):
-	def __init__( self, name=None, id_= -1 ):
+	def __init__( self, name=None ):
 		# Always have a name
 		if name is None:
-			name = self.__name__
+			name = self.__class__.__name__
 
-		ISchedule.__init__( self, name, int( id_ ) )
+		# Pass id of -1 since we receive an id when registered!
+		ISchedule.__init__( self, name, -1 )
 
 		self.tasks = []
 		self.interrupts = []
@@ -15,8 +16,36 @@ class BaseSchedule( ISchedule ):
 	def __str__( self ):
 		return "%s <%i>" % ( self.name, self.id_ )
 
+	def __eq__( self, other ):
+		if isinstance( other, int ):
+			return self.id_ == other
+		return NotImplemented
+
+	def __ne__( self, other ):
+		ret = self.__eq__( other )
+		if ret is NotImplemented:
+			return ret
+		return not ret
+
+	def Build( self ):
+		raise NotImplementedError( "You must define a Build function!" )
+
+	def Register( self ):
+		self.Build()
+
+		for task in self.tasks:
+			if issubclass( task[1].__class__, ISchedule ):
+				task[1] = task[1].id_
+			else:
+				try:
+					task[1] = float( task[1] )
+				except:
+					pass
+
+		ISchedule.Register( self )
+
 	def AddTask( self, task, data=0 ):
-		self.tasks.append( [int( task ), float( data )] )
+		self.tasks.append( [ task, data ] )
 
 	def AddInterrupt( self, interrupt ):
 		self.interrupts.append( int( interrupt ) )
@@ -26,6 +55,7 @@ class BaseSchedule( ISchedule ):
 
 	def GetInterrupts( self ):
 		return self.interrupts
+
 
 # Define the global conditions (interrupts)
 class Cond( GEAiCond.Cond ):
@@ -43,19 +73,20 @@ class Cond( GEAiCond.Cond ):
 	GES_HIGH_ARMOR 		 = None
 	GES_LOW_ARMOR 		 = None
 
-import CommonSchedules
 
 # Define the global schedules
 class Sched( GEAiSched.Sched ):
+	import common as c
+
 	# Override HL2 schedules that misbehave (these are loaded FIRST)
-	ESTABLISH_LINE_OF_FIRE = CommonSchedules.EstablishLOFFallback()
-	COMBAT_FACE	 		 = CommonSchedules.CombatFaceOverride()
+	ESTABLISH_LINE_OF_FIRE = c.EstablishLOFFallback()
+	COMBAT_FACE = c.CombatFaceOverride()
 
 	# Bot specific schedules
-	BOT_PATROL 			 = CommonSchedules.BotPatrol()
-	BOT_SEEK_ENEMY 		 = CommonSchedules.BotSeekEnemy()
-	BOT_ENGAGE_ENEMY	 = CommonSchedules.BotEngageEnemy()
-	BOT_SEEK_WEAPON 	 = CommonSchedules.BotSeekWeapon()
-	BOT_SEEK_AMMO 		 = CommonSchedules.BotSeekAmmo()
-	BOT_SEEK_ARMOR 		 = CommonSchedules.BotSeekArmor()
-	BOT_SEEK_TOKEN		 = CommonSchedules.BotSeekToken()
+	BOT_PATROL = c.BotPatrol()
+	BOT_SEEK_ENEMY = c.BotSeekEnemy()
+	BOT_ENGAGE_ENEMY = c.BotEngageEnemy()
+	BOT_SEEK_WEAPON = c.BotSeekWeapon()
+	BOT_SEEK_AMMO = c.BotSeekAmmo()
+	BOT_SEEK_ARMOR = c.BotSeekArmor()
+	BOT_SEEK_TOKEN = c.BotSeekToken()

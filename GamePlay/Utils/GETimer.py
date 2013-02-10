@@ -1,12 +1,12 @@
 import GEUtil, GEMPGameRules
 from GEGlobal import EventHooks
 
-def EndMatchCallback( timer, type ):
-	if type == Timer.UPDATE_FINISH:
+def EndMatchCallback( timer, type_ ):
+	if type_ == Timer.UPDATE_FINISH:
 		GEMPGameRules.EndMatch()
 
-def EndRoundCallback( timer, type ):
-	if type == Timer.UPDATE_FINISH:
+def EndRoundCallback( timer, type_ ):
+	if type_ == Timer.UPDATE_FINISH:
 		GEMPGameRules.EndRound()
 
 class TimerTracker:
@@ -63,7 +63,7 @@ class TimerTracker:
 
 		self.lastagetime = now
 
-# Simple timer that can be registered to a timer updater 
+# Simple timer that can be registered to a timer updater
 # which decrements all timers it is currently tracking
 class Timer:
 	( UPDATE_START, UPDATE_RUN, UPDATE_PAUSE, UPDATE_STOP, UPDATE_FINISH ) = range( 5 )
@@ -162,11 +162,11 @@ class Timer:
 		# Attempt an update call
 		self._CallUpdate( Timer.UPDATE_RUN )
 
-	def _CallUpdate( self, type ):
+	def _CallUpdate( self, type_ ):
 		now = GEUtil.GetTime()
 		# We only attempt this if we have a callback, are a special update or are dirty and its time
-		if self.updateCallback and ( type != Timer.UPDATE_RUN or ( self.updateDirty and now >= self.updateNext ) ):
+		if self.updateCallback and ( type_ != Timer.UPDATE_RUN or ( self.updateDirty and now >= self.updateNext ) ):
 			self.updateNext = now + self.updateRate
 			self.updateDirty = False
 			# Call into our callback
-			self.updateCallback( self, type )
+			self.updateCallback( self, type_ )

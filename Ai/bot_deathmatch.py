@@ -2,10 +2,8 @@ from Ai import PYBaseNPC, AiSystems
 from Ai.Utils import Memory, Weapons
 from GEAiConst import Class, State, Capability as Cap, Disposition as D
 from Schedules import Sched, Cond
-import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
+import GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 import random
-
-import GEGamePlay
 
 USING_API = Glb.API_VERSION_1_0_0
 
@@ -41,8 +39,8 @@ class bot_deathmatch( PYBaseNPC ):
 		min_weight = Weapons.Weight.BEST
 		max_weight = Weapons.Weight.WORST
 		loadout = GERules.GetWeaponLoadout()
-		for id in loadout:
-			weap_info = GEWeapon.WeaponInfo( id )
+		for id_ in loadout:
+			weap_info = GEWeapon.WeaponInfo( id_ )
 			if "weight" in weap_info:
 				if weap_info["weight"] < min_weight:
 					min_weight = weap_info["weight"]
@@ -160,7 +158,7 @@ class bot_deathmatch( PYBaseNPC ):
 			return Sched.BOT_SEEK_ENEMY
 
 	def ShouldInterruptSchedule( self, schedule ):
-		# This is for future expansion pack! ;-) 
+		# This is for future expansion pack! ;-)
 		return False
 
 	def OnDebugCommand( self, cmd ):
