@@ -1,0 +1,107 @@
+import GEPlayer, GEUtil
+
+def GetUID( ent ):
+	'''
+	@type ent: CBaseEntity
+	'''
+	return int
+
+def GetEntByUniqueId( uid ):
+	'''
+	@type uid: int
+	'''
+	return CBaseEntity
+
+def GetEntByUID( uid ):
+	'''
+	@type uid: int
+	'''
+	return CBaseEntity
+
+def GetEntitiesInBox( classname, origin, mins, maxs ):
+	'''
+	@type classname: str
+	@type origin: GEUtil.CVector
+	@type mins: GEUtil.CVector
+	@type maxs: GEUtil.CVector
+	'''
+	return []
+
+# Safe way to store an entity while retaining direct access
+# Use by initialization: hEnt = EHANDLE( ent )
+# Then retrieve with: hEnt.Get()  <-- Check for None!
+class EHANDLE:
+	def __init__(self, ent):
+		'''
+		@type ent: CBaseEntity
+		'''
+	
+	def Get(self):
+		'''
+		This will return None if the referenced entity is no longer valid
+		'''
+		return CBaseEntity
+	
+	def GetUID(self):
+		'''
+		Returns the Unique ID of the references entity
+		'''
+		return int
+	
+class CBaseEntity:
+	def GetParent(self):
+		return CBaseEntity
+	
+	def GetPlayerOwner(self):
+		return GEPlayer.CBaseCombatCharacter
+	
+	def GetOwner(self):
+		return CBaseEntity
+	
+	def GetTargetName(self):
+		'''Get the map-based target name of the entity'''
+		return str
+		
+	def SetTargetName(self):
+		'''Set the map-based target name of the entity'''
+		
+	def GetClassname(self):
+		return str
+	
+	def SetModel(self, model):
+		'''
+		@type model: str
+		'''
+		
+	def IsAlive(self):
+		return bool
+	
+	def IsPlayer(self):
+		return bool
+	
+	def IsNPC(self):
+		return bool
+	
+	def GetTeamNumber(self):
+		return int
+	
+	def GetAbsOrigin(self):
+		return GEUtil.Vector
+		
+	def SetAbsOrigin(self, origin):
+		'''@type origin: GEUtil.Vector'''
+	
+	def GetAbsAngles(self):
+		return GEUtil.QAngle
+		
+	def SetAbsAngles(self, angles):
+		'''@type origin: GEUtil.QAngle'''
+	
+	def GetEyeAngles(self):
+		return GEUtil.Vector
+	
+	def GetUID(self):
+		return int
+	
+	def GetIndex(self):
+		return int

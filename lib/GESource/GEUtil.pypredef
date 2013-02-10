@@ -1,0 +1,565 @@
+import GEEntity
+
+def ClientPrint( player_or_team, dest, msg, param1=None, param2=None, param3=None, param4=None ):
+	'''
+	Post a message in the destination specified using GEGlobal.HUD_PRINT*
+	Set player_or_team to None to print to all players
+	
+	@type player_or_team: GEPlayer.CGEPlayer or Team Number
+	@type dest: int
+	@type msg: str
+	@type param1: str
+	@type param2: str
+	@type param3: str
+	@type param4: str
+	'''
+
+def HudMessage( player_or_team, msg, x, y, color=GEUtil.Color( 255, 255, 255, 255 ), holdtime=5.0, channel= -1 ):
+	'''
+	Post a message on the HUD using the specified styling
+	Set player_or_team to None to print to all players
+	
+	X and Y values are floats and represent a percentage of the client's 
+	screen size for positioning. They are agnostic to the actual screen size 
+	as a result. To center the message use -1. To right-align or bottom-align 
+	use 0 < value < -1 (eg -0.1).
+	
+	You can use the color hints defined here: http://wiki.geshl2.com/index.php/HudColor
+	Use ^| to stop the custom color
+	
+	@type player_or_team: GEPlayer.CGEPlayer or Team Number
+	@type msg: str
+	@type x: float
+	@type y: float
+	@type color: GEUtil.Color
+	@type holdtime: float
+	@type channel: int
+	'''
+
+def PopupMessage( player_or_team, title, msg, image="" ):
+	'''
+	Create a Popup notice that will appear on the left side of the screen
+	Set player_or_team to None to print to all players
+	
+	@type player_or_team: GEPlayer.CGEPlayer or Team Number
+	@type title: str
+	@type msg: str
+	@type image: str
+	'''
+
+def Msg( msg ):
+	'''
+	Write a message to the console
+	
+	@type msg: str
+	'''
+
+def Warning( msg ):
+	'''
+	Write a warning to the console
+	
+	@type msg: str
+	'''
+
+def ServerCommand( cmd ):
+	'''
+	Execute an arbitrary command on the server.
+	e.g. - GEUtil.ServerCommand( "ge_endround\n" )
+	
+	Warning: It is preferred to use authed Python commands whenever possible!
+	
+	@type cmd: str
+	'''
+
+def ClientCommand( player, cmd ):
+	'''
+	Execute an arbitrary command on designated player.
+	e.g. - GEUtil.ClientCommand( player, "kill\n" )
+	
+	Warning: It is preferred to use authed Python commands whenever possible!
+	
+	@type player: GEPlayer.CGEPlayer
+	@type cmd: str
+	'''
+
+''' Temporary Entity Definitions '''
+class TE:
+	RING = int
+	BEAM = int
+	BEAM_FOLLOW = int
+	DUST = int
+	SMOKE = int
+	SPARK = int
+
+def CreateTempEnt( type, origin=Vector, **kwargs ):
+	'''
+	Create a Temporary Entity of the given type at the given origin and extended args.
+	Origin is required for all temp ents. BEAM requires origin and end. 
+	BEAM_FOLLOW requires origin and entity.
+	
+	- RING: origin, delay, radius_start, radius_end, framerate, duration, width, amplitude, color, speed
+	- BEAM: origin, end, delay, framerate, duration, width, width_end, fade_length, amplitude, color, speed
+	- BEAM_FOLLOW: origin, entity, delay, duration, width, width_end, fade_length, color
+	- DUST: origin, delay, direction, size, speed
+	- SMOKE: origin, delay, size, framerate
+	- SPARK: origin, delay, magnitude, direction, trail_length
+	
+	@type type: TE
+	@type origin: GEUtil.Vector (required!)
+	'''
+
+def EmitGameplayEvent( name, value1=None, value2=None, value3=None, value4=None, send_to_clients=False ):
+	'''
+	Emit a custom gameplay event with a name and string values. These events can
+	be picked up by server plugins to do special actions in conjunction with your
+	scenario.
+	
+	@type name: str
+	@type value1: str
+	@type value2: str
+	@type value3: str
+	@type value4: str
+	@type send_to_clients: bool
+	'''
+
+def PostDeathMessage( msg ):
+	'''
+	Post a message in the death notices [max length 128]
+	
+	@type msg: str
+	'''
+
+def DebugDrawLine( start, end, r, g, b, no_depth_test, duration ):
+	'''
+	Mainly for visual debugging between two points
+	
+	@type start: Vector
+	@type end: Vector
+	@type r: int
+	@type g: int
+	@type b: int
+	@type no_depth_test: bool
+	@type duration: float
+	'''
+
+def GetTime():
+	'''
+	Get the current server game time
+	'''
+	return float
+
+def GetCVarValue( name ) -> str:
+	'''
+	Get the value of a console variable
+	
+	@type name: str
+	'''
+	return str
+
+def DistanceBetween( ent1, ent2 ):
+	'''
+	@type ent1: GEEntity.CBaseEntity
+	@type ent2: GEEntity.CBaseEntity
+	'''
+	return float
+
+def PrecacheSound( soundname ):
+	'''
+	@type soundname: str
+	'''
+
+def PrecacheModel( model ):
+	'''
+	@type model: str
+	'''
+
+def PrecacheParticleEffect( particle ):
+	'''
+	@type particle: str
+	'''
+
+def AddDownloadable( file ):
+	'''
+	@type file: str
+	'''
+
+def PlaySoundTo( dest, soundname, dim_music=False ):
+	'''
+	Play a sound to the given destination. This can be a player, team number,
+	or None which will play it to everyone. Set dim_music to True to dim the
+	background music when this sound plays (default is False).
+	
+	This sound is not attenuated in any way and is played such that only the 
+	provided players can hear it.
+	
+	@type dest: GEPlayer.CGEPlayer or int or None
+	@type soundname: str
+	@type dim_music: bool
+	'''
+
+def PlaySoundFrom( origin, soundname, attenuation=0.8 ):
+	'''
+	Play a sound from the given origin. This can be a player or a vector.
+	You can change how much the sound is attenuated by changing 'attenuation'.
+	Closer to zero lets people hear the sound further away.
+	Note: Gunfire has an attenuation of 0.27!
+	
+	@type dest: GEPlayer.CGEPlayer or GEUtil.Vector
+	@type soundname: str
+	@type attenuation: double (0 -> 3.0)
+	'''
+
+def ParticleEffect( player, attachment, effect, follow ):
+	'''
+	@type player: GEPlayer.CGEPlayer
+	@type attachment: str
+	@type effect: str
+	@type follow: bool
+	'''
+
+def ParticleEffectBeam( player, attachment, end, effect ):
+	'''
+	@type player: GEPlayer.CGEPlayer
+	@type attachment: str
+	@type end: Vector
+	@type effect: str
+	'''
+
+def InitHudProgressBar( player_or_team, index, title, flags, maxValue, x, y, wide, tall, color ):
+	'''
+	Initiate a progress bar to show on players' screens. There can be a maximum of 8
+	progress bars for each player. Use index to indicate which bar you are initializing.
+	Initializing with the same index as a previous bar completely overwrites the previous
+	one.
+	
+	Use ConfigHudProgressBar to simply update the color or title, it uses significantly
+	less network bandwidth than this function.
+	
+	Set player_or_team to None to send to all players
+	
+	@type player_or_team: GEPlayer.CGEPlayer or Team Number
+	@type index: int
+	@type title: str
+	@type flags: int
+	@type maxValue: float
+	@type x: float
+	@type y: float
+	@type wide: int
+	@type tall: int
+	@type color: GEUtil.Color
+	'''
+
+def UpdateHudProgressBar( player_or_team, index, value ):
+	'''
+	Update an existing progress bar with a new value
+	
+	Set player_or_team to None to send to all players
+	
+	@type player_or_team: GEPlayer.CGEPlayer or Team Number
+	@type index: int
+	@type value: float
+	'''
+
+def ConfigHudProgressBar( player_or_team, index, title, color=GEUtil.Color( 0, 0, 0, 0 ) ):
+	'''
+	Update the title or color of an existing progress bar
+	
+	Set player_or_team to None to send to all players
+	
+	@type player_or_team: GEPlayer.CGEPlayer or Team Number
+	@type index: int
+	@type title: str
+	@type color: GEUtil.Color
+	'''
+
+def RemoveHudProgressBar( player_or_team, index ):
+	'''
+	Remove a progress bar from the designated player's screen
+	
+	Set player_or_team to None to send to all players
+	
+	@type player_or_team: GEPlayer.CGEPlayer or Team Number
+	@type index: int
+	'''
+
+def VectorMA( start, direction, distance ) -> Vector:
+	'''
+	Multiply the start vector in the given direction by distance
+	
+	@type start: Vector
+	@type direction: Vector
+	@type distance: float
+	'''
+	return Vector
+
+def Trace( start, end, options, ignore_ent=None ) -> GEEntity.CBaseEntity:
+	'''
+	Perform a trace in the world, returns the entity that was hit by the trace,
+	if any. Options are from GEGlobal.TRACE_* and can be bitwise or'd to control
+	what type of entities will be returned when hit.
+	
+	@type start: Vector
+	@type end: Vector
+	@type options: int
+	@type ignore_ent: GEEntity.CBaseEntity
+	'''
+	return GEEntity.CBaseEntity
+
+class Color:
+	def __init__( self, r=0, g=0, b=0, a=0 ):
+		'''
+		@type r: int
+		@type g: int
+		@type b: int
+		@type a: int
+		'''
+
+	def __getitem__( self, item ):
+		return float
+
+	def __setitem__( self, item, value ):
+		return
+
+	def SetColor( self, r, g, b, a=0 ):
+		'''
+		@type r: int
+		@type g: int
+		@type b: int
+		@type a: int
+		'''
+
+	def SetRawColor( self, color ):
+		'''
+		Sets the color using raw 32-bit number
+		
+		@type color: int
+		'''
+
+	def GetRawColor( self ):
+		return int
+
+	def r( self ):
+		return int
+
+	def g( self ):
+		return int
+
+	def b( self ):
+		return int
+
+	def a( self ):
+		return int
+
+# This is deprecated
+class CColor( Color ):
+	pass
+
+class QAngle:
+	def __init__( self, x=0, y=0, z=0 ):
+		'''
+		@type x: float
+		@type y: float
+		@type z: float
+		'''
+
+	def __getitem__( self, item ):
+		return float
+
+	def __setitem__( self, item, value ):
+		return
+
+	def Random( self, min_val, max_val ):
+		'''
+		@type min_val: float
+		@type max_val: float
+		'''
+
+	def IsValid( self ):
+		return bool
+
+	def Invalidate( self ):
+		return
+
+	def Length( self ):
+		return float
+
+	def LengthSqr( self ):
+		return float
+
+	def __add__( self, other ) -> QAngle:
+		'''
+		@type other: QAngle
+		'''
+		return QAngle
+
+	def __sub__( self, other ) -> QAngle:
+		'''
+		@type other: QAngle
+		'''
+		return QAngle
+
+	def __div__( self, other ) -> QAngle:
+		'''
+		@type other: float
+		'''
+		return QAngle
+
+	def __mult__( self, other ) -> QAngle:
+		'''
+		@type other: float
+		'''
+		return QAngle
+
+class Vector:
+	def __init__( self, x=0, y=0, z=0 ):
+		'''
+		@type x: float
+		@type y: float
+		@type z: float
+		'''
+
+	def __getitem__( self, item ):
+		return float
+
+	def __setitem__( self, item, value ):
+		return
+
+	def Random( self, min_val, max_val ):
+		'''
+		@type min_val: float
+		@type max_val: float
+		'''
+
+	def IsValid( self ):
+		return bool
+
+	def Invalidate( self ):
+		return
+
+	def Length( self ):
+		return float
+
+	def Length2D( self ):
+		return float
+
+	def LengthSqr( self ):
+		return float
+
+	def Length2DSqr( self ):
+		return float
+
+	def Zero( self ):
+		return
+
+	def Negate( self ):
+		return
+
+	def IsZero( self ):
+		return bool
+
+	def NormalizeInPlace( self ):
+		return float
+
+	def IsLengthGreaterThan( self, val ):
+		'''
+		@type val: float
+		'''
+		return bool
+
+	def IsLengthLessThan( self, val ):
+		'''
+		@type val: float
+		'''
+		return bool
+
+	def DistTo( self, other ):
+		'''
+		@type other: Vector
+		'''
+		return float
+
+	def DistToSqr( self, other ):
+		'''
+		@type other: Vector
+		'''
+		return float
+
+	def MulAdd( self, a, b, scalar ):
+		'''
+		@type a: Vector
+		@type b: Vector
+		@type scalar: float
+		'''
+
+	def Dot( self, other ):
+		'''
+		@type other: Vector
+		'''
+		return float
+
+	def __eq__( self, other ):
+		'''
+		@type other: Vector
+		'''
+		return bool
+
+	def __add__( self, other ) -> Vector:
+		'''
+		@type other: Vector
+		'''
+		return Vector
+
+	def __sub__( self, other ) -> Vector:
+		'''
+		@type other: Vector
+		'''
+		return Vector
+
+	def __div__( self, other ) -> Vector:
+		'''
+		@type other: float
+		'''
+		return Vector
+
+	def __mult__( self, other ) -> Vector:
+		'''
+		@type other: float
+		'''
+		return Vector
+
+class CSound:
+	def DoesSoundExpire( self ):
+		return bool
+
+	def SoundExpirationTime( self ):
+		return float
+
+	def GetSoundOrigin( self ) -> Vector:
+		return Vector
+
+	def GetSoundReactOrigin( self ) -> Vector:
+		return Vector
+
+	def FIsSound( self ):
+		return bool
+
+	def FIsScent( self ):
+		return bool
+
+	def IsSoundType( self, flags ):
+		return bool
+
+	def SoundType( self ):
+		return int
+
+	def SoundContext( self ):
+		return int
+
+	def SoundTypeNoContext( self ):
+		return int
+
+	def Volume( self ):
+		return int
+
+	def OccludedVolume( self ):
+		return float

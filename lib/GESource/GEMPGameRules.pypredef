@@ -1,0 +1,377 @@
+import GEEntity, GEWeapon, GEUtil
+
+def EndMatch():
+	'''
+	This function bypasses calls to CanRoundEnd and CanMatchEnd.
+	The map is changed after the round and match reports are shown.
+	'''
+	return
+
+def EndRound( should_score, change_weapons ):
+	'''
+	This function bypasses calls to CanRoundEnd and CanMatchEnd
+	If should_score is False it will bypass round scoring and not
+	show the after action report. If change_weapons is False then
+	the current weapon set will not change for the next round.
+	
+	@type should_score: bool
+	@type change_weapons: bool
+	'''
+
+def GetTeam( index ) -> CTeam:
+	'''
+	@type index: int
+	'''
+	return CTeam
+
+def GetRadar() -> CGERadar:
+	return CGERadar
+
+def GetTokenMgr() -> CGETokenManager:
+	return CGETokenManager
+
+def LockRound():
+	return
+
+def UnlockRound():
+	return
+
+def IsRoundLocked():
+	return bool
+
+def AllowRoundTimer( state ):
+	'''
+	@type state: bool
+	'''
+
+def DisableWeaponSpawns():
+	return
+
+def DisableAmmoSpawns():
+	return
+
+def DisableArmorSpawns():
+	return
+
+def GetWeaponInSlot( slot ) -> int:
+	'''
+	@type slot: int
+	'''
+	return int
+
+def GetWeaponLoadout( name=None ) -> [int]:
+	'''
+	@type name: str
+	'''
+	return [int]
+
+def SetPlayerWinner( player ):
+	'''
+	@type player: GEPlayer.CGEMPPlayer
+	'''
+
+def SetTeamWinner( team ):
+	'''
+	@type team: CTeam
+	'''
+
+def GetMapTimeLeft():
+	return float
+
+def GetRoundTimeLeft():
+	return float
+
+def IsIntermission():
+	return bool
+
+def IsGameOver():
+	return bool
+
+def IsTeamplay():
+	return bool
+
+def GetNumActivePlayers():
+	return int
+
+def GetNumActiveTeamPlayers( team ):
+	'''
+	@type team: int
+	'''
+	return int
+
+def GetNumInRoundPlayers():
+	return int
+
+def GetNumInRoundTeamPlayers( team ):
+	'''
+	@type team: int
+	'''
+	return int
+
+def GetNumAlivePlayers():
+	return int
+
+def SetExcludedCharacters( char_list ):
+	'''
+	Exclude characters from being shown on the character
+	select panel. Separate each character identity with
+	a comma: "006_mi6,bond,samedi"
+	
+	@type char_list: str
+	'''
+
+def SetAllowTeamSpawns( state ):
+	'''
+	@type state: bool
+	'''
+
+def ResetAllPlayerDeaths():
+	return
+
+def ResetAllPlayersScores():
+	return
+
+def ResetAllTeamsScores():
+	return
+
+class CTakeDamageInfo:
+	def GetInflictor( self ) -> GEEntity.CBaseEntity:
+		return GEEntity.CBaseEntity
+
+	def GetAttacker( self ) -> GEEntity.CBaseEntity:
+		return GEEntity.CBaseEntity
+
+	def GetWeapon( self ) -> GEEntity.CBaseEntity:
+		return GEEntity.CBaseEntity
+
+	def GetDamage( self ):
+		return float
+
+	def GetDamageType( self ):
+		return int
+
+	def GetAmmoName( self ) -> str:
+		return str
+
+class CTeam:
+	def GetRoundScore( self ):
+		return int
+
+	def SetRoundScore( self, score ):
+		'''
+		@type score: int
+		'''
+
+	def AddRoundScore( self, amount ):
+		'''
+		@type amount: int
+		'''
+
+	def GetMatchScore( self ):
+		return int
+
+	def SetMatchScore( self, score ):
+		'''
+		@type score: int
+		'''
+
+	def AddMatchScore( self, amount ):
+		'''
+		@type amount: int
+		'''
+
+	def ResetMatchScore( self ):
+		return
+
+	def GetNumPlayers( self ):
+		return int
+
+	def GetName( self ) -> str:
+		return str
+
+	def GetTeamNumber( self ):
+		return int
+
+class CGERadar:
+	def SetForceRadar( self, state ):
+		'''
+		@type state: bool
+		'''
+
+	def SetPlayerRangeMod( self, player, multiplier ):
+		'''
+		Sets a multiplier on this player's radar range [0-1.0]
+		
+		@type player: GEEntity.CBaseEntity
+		@type multiplier: float
+		'''
+
+	def AddRadarContact( self, entity:GEEntity.CBaseEntity, type=0, always_visible=False, icon="", color=GEUtil.Color() ):
+		'''
+		@type entity: GEEntity.CBaseEntity
+		@type type: int
+		@type always_visible: bool
+		@type icon: str
+		@type color: GEUtil.CColor
+		'''
+
+	def DropRadarContact( self, entity ):
+		'''
+		@type entity: GEEntity.CBaseEntity
+		'''
+
+	def IsRadarContact( self, entity ):
+		'''
+		@type entity: GEEntity.CBaseEntity
+		'''
+		return bool
+
+	def SetupObjective( self, entity, team_filter=GEGlobal.TEAM_NONE, token_filter="", text="", color=GEUtil.CColor(), min_dist=0, pulse=False ):
+		'''
+		Setup an on-screen objective icon. RADAR_TYPE_OBJECTIVE or RADAR_TYPE_TOKEN
+		automatically become objectives, you can override the defaults with this
+		function. Use the team_filter to restrict the icon by team number. Use
+		token_filter to restrict the icon to those who hold the named token, put
+		a ! in front of the name for the inverse. Text displays above the icon. Set
+		min_dist to have icons fade out when the player is within this distance to
+		the objective. Pulse causes the icon to pulse, useful to attract attention.
+		
+		@type entity: GEEntity.CBaseEntity
+		@type team_filter: int
+		@type token_filter: str
+		@type text: str
+		@type color: GEUtil.CColor
+		@type min_dist: int
+		@type pulse: bool
+		'''
+		return
+
+	def ClearObjective( self, entity ):
+		'''
+		Explicitly remove the entity as an objective
+		'''
+		return
+
+	def DropAllContacts( self ):
+		return
+
+	def ListContactsNear( self, origin:GEUtil.Vector ) -> []:
+		'''
+		Returns a list of dicts that describe the contacts on 
+		the radar within range of the origin given.
+		Dict: {"ent_handle","origin","range","team","type","is_objective"}
+		
+		@type origin: GEUtil.Vector
+		'''
+		return []
+
+class CGETokenManager:
+	def SetupToken( self, classname, **kwargs ):
+		'''
+		Sets up a new or existing token, supply settings 
+		through the following kwargs (defaults provided):
+		
+		limit : 0
+		team  : GEGlobal.TEAM_NONE
+		skin  : 0
+		location    : GEGlobal.SPAWN_PLAYER
+		glow_color  : GEUtil.Color()
+		glow_dist   : 350.0 (inches)
+		view_model  : None
+		world_model : None
+		print_name  : None
+		allow_switch: True
+		damage_mod  : 1.0 (percent)
+		respawn_delay : 10.0 (sec)
+		
+		@type classname: str
+		'''
+
+	def IsValidToken( self, classname ):
+		'''
+		@type classname: str
+		'''
+		return bool
+
+	def RemoveToken( self, classname ):
+		'''
+		@type classname: str
+		'''
+
+	def RemoveTokenEnt( self, token, adjust_limit=True ):
+		'''
+		Removes the actual token from the world. Adjusts the
+		token limit by default so it will not respawn.
+		
+		@type token: GEWeapon.CGEWeapon
+		@type adjust_limit: bool
+		'''
+
+	def TransferToken( self, token, to_player ):
+		'''
+		Transfer a token from one player to another, set
+		to_player to None to drop the token
+		
+		@type token: GEWeapon.CGEWeapon
+		@type to_player: GEPlayer.CGEPlayer
+		'''
+
+	def GetTokens( self, classname ) -> [GEWeapon.CGEWeapon]:
+		'''
+		Returns a list of all the tokens in play of the particular classname
+		
+		@type classname: str
+		'''
+		return [GEWeapon.CGEWeapon]
+
+	def CaptureToken( self, token ):
+		'''
+		Captures a token such that it is removed from play
+		
+		@type token: GEWeapon.CGEWeapon
+		'''
+
+	def SetupCaptureArea( self, name, **kwargs ):
+		'''
+		Sets up a new or existing capture area, supply settings 
+		through the following kwargs (defaults provided):
+		
+		limit : 0
+		model : "models/gameplay/capturepoint.mdl"
+		skin  : 0
+		location  : GEGlobal.SPAWN_PLAYER
+		rqd_token : None
+		rqd_team  : None
+		radius : 32.0 (inches)
+		spread : 500.0 (minimum dist btwn areas)
+		
+		@type name: str
+		'''
+
+	def RemoveCaptureArea( self, name ):
+		'''
+		Removes the named capture area definition from play
+		
+		@type name: str
+		'''
+
+	def SetGlobalAmmo( self, classname, amount= -1 ):
+		'''
+		Set global ammo based on the weapon classname given. Set
+		amount to -1 to use 1/2 the normal crate amount.
+		
+		@type classname: str
+		@type amount: int
+		'''
+
+	def RemoveGlobalAmmo( self, classname ):
+		'''
+		@type classname: str
+		'''
+
+class CGECaptureArea( GEEntity.CBaseEntity ):
+	def GetGroupName( self ) -> str:
+		'''
+		Get the Group Name that this capture area was spawned under
+		'''
+		return str

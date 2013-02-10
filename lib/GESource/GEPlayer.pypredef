@@ -1,0 +1,323 @@
+import GEEntity, GEWeapon
+
+def IsValidPlayerIndex( index ):
+	'''
+	@type index: int
+	'''
+	return bool
+
+def ToCombatCharacter( ent ) -> CBaseCombatCharacter:
+	'''
+	@type ent: GEEntity.CBaseEntity
+	'''
+	return CBaseCombatCharacter
+
+def ToMPPlayer( ent_or_uid ) -> CGEMPPlayer:
+	'''
+	Returns an MP Player instance if supplied an entity instance or player's unique id
+	Returns None if conversion fails or entity does not exist
+	
+	@type ent: GEEntity.CBaseEntity or Unique ID of player
+	'''
+	return CGEMPPlayer
+
+def GetMPPlayer( index ) -> CGEMPPlayer:
+	'''
+	Returns an MP Player instance if supplied a valid player entity index (1 -> maxplayers)
+	Return None if the player does not exist
+	
+	@type index: int
+	'''
+	return CGEMPPlayer
+
+class CBaseCombatCharacter( GEEntity.CBaseEntity ):
+	def GetHealth( self ):
+		return int
+
+	def SetHealth( self, health ):
+		'''
+		@type health: int
+		'''
+
+	def GetSkin( self ):
+		return int
+
+	def GetActiveWeapon( self ) -> GEWeapon.CGEWeapon:
+		return GEWeapon.CGEWeapon
+
+	def HasWeapon( self, weapon ):
+		'''
+		Check if the player has the weapon in question.
+		You can pass in a valid weapon id, weapon classname, 
+		or weapon entity
+		
+		@type weapon: int, str, or GEWeapon.CGEWeapon
+		'''
+		return bool
+
+	def WeaponSwitch( self, weapon ):
+		'''
+		Switch to the given weapon. You can pass in a valid weapon id,
+		weapon classname, or weapon entity this entity owns
+		
+		@type weapon: int, str, or GEWeapon.CGEWeapon
+		'''
+		return bool
+
+	def GetAmmoCount( self, weapon_or_ammo ):
+		'''
+		Returns the amount of ammo held by the player. This function
+		can be called with weapon_or_ammo set to a weapon entity,
+		weapon id, or ammo name (see GEGlobal).
+		
+		@type weapon_or_ammo: int, str, or GEWeapon.CGEWeapon
+		'''
+		return int
+
+	def GetHeldWeapons( self ) -> [GEWeapon.CGEWeapon]:
+		'''
+		Returns a list of weapon entities held by the player
+		'''
+		return [GEWeapon.CGEWeapon]
+
+	def GetHeldWeaponIds( self ) -> [int]:
+		'''
+		Returns a list of weapon ids held by the player
+		'''
+		return [int]
+
+class CGEPlayer( CBaseCombatCharacter ):
+	def GetFrags( self ):
+		return int
+
+	def GetDeaths( self ):
+		return int
+
+	def AddDeathCount( self, amount:int ):
+		'''
+		@type amount: int
+		'''
+
+	def GetArmor( self ):
+		return int
+
+	def GetHealth( self ):
+		return int
+
+	def ResetDeathCount( self ):
+		return
+
+	def CommitSuicide( self ):
+		'''
+		Force the player to commit suicide, counts against them
+		'''
+		return
+
+	def GetPlayerName( self ) -> str:
+		'''
+		Get the player's name (includes color hints)
+		'''
+		return str
+
+	def GetPlayerID( self ) -> int:
+		'''
+		Get the player's id (useful for event messages)
+		'''
+		return int
+
+	def GetSteamID( self ) -> str:
+		'''
+		Get the player's Steam ID. If they are on LAN or offline this will ALWAYS
+		return "STEAM_ID_PENDING". Use this for identification carefully.
+		
+		Note: Bots don't have a Steam ID!!
+		'''
+		return str
+
+	def IsDead( self ):
+		return bool
+
+	def IsObserver( self ):
+		return bool
+
+	def GetMaxArmor( self ):
+		return int
+
+	def SetMaxArmor( self ):
+		return int
+
+	def GetMaxHealth( self ):
+		return int
+
+	def SetMaxHealth( self ):
+		return int
+
+	def SetArmor( self, armor ):
+		'''
+		@type armor: int
+		'''
+
+	def GetPlayerModel( self ) -> str:
+		'''
+		Identity of the player's character
+		'''
+		return str
+
+	def SetPlayerModel( self, character, skin ):
+		'''
+		Set the player's character & skin explicitly 
+		
+		@type character: string
+		@type skin: int
+		'''
+
+	def SetDamageMultiplier( self, mult ):
+		'''
+		Multiplier for damage inflicted by this player [0-200]
+		
+		@type mult: int
+		'''
+
+	def SetSpeedMultiplier( self, mult ):
+		'''
+		Multiplier for the player's speed [0.5-1.5]
+		
+		@type mult: int
+		'''
+
+	def SetScoreBoardColor( self, color ):
+		'''
+		Sets the color of the player's name in the scoreboard
+		Use GEGlobal.SB_COLOR_* for the colors
+		
+		@type color: int
+		'''
+
+	def StripAllWeapons( self ):
+		'''
+		Take all weapons and ammo from the player
+		'''
+		return
+
+	def GetAimDirection( self ) -> GEUtil.Vector:
+		'''
+		Returns the current vector pointing in the direction the player is aiming
+		Note: Currently does not work for bots
+		'''
+		return GEUtil.Vector
+
+	def GetEyePosition( self ) -> GEUtil.Vector:
+		'''
+		Returns the current position of this player's eyes
+		'''
+		return GEUtil.Vector
+
+	def GiveNamedWeapon( self, classname, ammo_amt, strip_ammo=False ):
+		'''
+		If strip_ammo is True it will only give ammo_amt to the player and not
+		the default clip ammo of the weapon
+		
+		@type classname: string
+		@type ammo_amt: int
+		@type strip_ammo: boolean
+		'''
+
+class CGEMPPlayer( CGEPlayer ):
+	def GetRoundScore( self ):
+		return int
+
+	def SetRoundScore( self, score ):
+		'''
+		@type score: int
+		'''
+
+	def AddRoundScore( self, amount ):
+		'''
+		@type amount: int
+		'''
+
+	def ResetRoundScore( self ):
+		return
+
+	def GetMatchScore( self ):
+		return int
+
+	def SetMatchScore( self, score ):
+		'''
+		@type score: int
+		'''
+
+	def AddMatchScore( self, amount ):
+		'''
+		@type amount: int
+		'''
+
+	def SetDeaths( self, deaths ):
+		'''
+		@type deaths: int
+		'''
+
+	def ForceRespawn( self ):
+		'''
+		Forces the player to find a new spawn spot, does not count
+		negatively against their score like a suicide would
+		'''
+		return
+
+	def ChangeTeam( self, team, forced=False ):
+		'''
+		Force the player to change to the specified team, if forced it will
+		not count against the player in scores
+		
+		@type team: int
+		@type forced: boolean
+		'''
+
+	def GetCleanPlayerName( self ) -> str:
+		'''
+		Return the player's name without color hints, useful for
+		on-screen notifications
+		'''
+		return str
+
+	def IsInitialSpawn( self ):
+		'''
+		Is this the first spawn for the player in the match?
+		'''
+		return bool
+
+	def SetInitialSpawn( self, state ):
+		'''
+		Explicitly set the next spawn for this player as initial
+		
+		@type state: boolean
+		'''
+
+	def GiveDefaultWeapons( self ):
+		'''
+		Gives the player the default weapon loadout as if they spawned
+		'''
+		return
+
+	def GiveAmmo( self, ammo_name, amount ):
+		'''
+		@type ammo_name: string
+		@type amount: int
+		'''
+
+class CGEBotPlayer( CGEMPPlayer ):
+	def GiveNamedWeapon( self, classname, ammo_amt, strip_ammo=False ):
+		'''
+		@type classname: string
+		@type ammo_amt: int
+		@type strip_ammo: boolean
+		'''
+	def ChangeTeam( self, team, forced=False ):
+		'''
+		@type team: int
+		@type forced: boolean
+		'''
+
+	def StripAllWeapons( self ):
+		return
+
