@@ -160,17 +160,20 @@ class PYBaseNPC( GEAi.CBaseNPC ):
 	# ----------------------------------- #
 	# Private Functions - DO NOT OVERRIDE #
 	# ----------------------------------- #
-	def CheckStartTask( self, taskID, taskData ):
-		ret = self.StartTask( taskID, taskData )
+	def CheckStartTask( self, task_id, task_data ):
+		# Pass the task to the Ai for custom handling
+		ret = self.StartTask( task_id, task_data )
 
 		if ret == False:
+			# The Ai didn't want to handle it
 			try:
-				self.__currTask = Tasks.TASK_OBJS[taskID]()
-				self.__currTask.Start( self, taskData )
+				self.__currTask = Tasks.Task.GetTask( task_id )
+				self.__currTask.Start( self, task_data )
 				return True
-			except KeyError:
+			except:
 				self.__currTask = None
 
+		# Pass back to C++
 		return ret
 
 	def CheckRunTask( self, taskID, taskData ):

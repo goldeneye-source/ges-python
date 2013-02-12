@@ -7,16 +7,16 @@ def RemoveCompiled( path ):
 	py_ext = ['.pyc', '.pyo']
 
 	if path.endswith( '*' ):
-		dir = os.path.split( path )[0]
-		for file in os.listdir( dir ):
-			( fn, ext ) = os.path.splitext( file )
-			if file != '.' and file != '..' and py_ext.count( ext ):
-				os.remove( dir + '\\' + file )
+		dir_ = os.path.split( path )[0]
+		for file_ in os.listdir( dir_ ):
+			( fn, ext ) = os.path.splitext( file_ )
+			if file_ != '.' and file_ != '..' and py_ext.count( ext ):
+				os.remove( dir_ + '\\' + file_ )
 	else:
 		for ext in py_ext:
-			file = "%s%s" % ( path, ext )
-			if os.path.exists( file ):
-				os.remove( file )
+			file_ = "%s%s" % ( path, ext )
+			if os.path.exists( file_ ):
+				os.remove( file_ )
 
 def FindModule( package, name ):
 	try:
@@ -28,12 +28,12 @@ def FindModule( package, name ):
 
 	return None
 
-def CheckAPI( object, check_api, do_reload=False ):
+def CheckAPI( obj, check_api, do_reload=False ):
 	if do_reload:
-		reload( object )
+		reload( obj )
 
-	if hasattr( object, "USING_API" ):
-		api_lvl = getattr( object, "USING_API", "0.0.0" )
+	if hasattr( obj, "USING_API" ):
+		api_lvl = getattr( obj, "USING_API", "0.0.0" )
 		if type( api_lvl ) is str:
 			in_levels = api_lvl.split( "." )
 			ck_levels = check_api.split( "." )

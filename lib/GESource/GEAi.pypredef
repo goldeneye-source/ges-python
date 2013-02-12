@@ -260,9 +260,33 @@ class ISchedule:
 	def __init__( self ):
 		return
 
-	def Register( self ):
+	def Register( self, sched_name ):
 		'''
 		Registers this schedule with the Ai System
+		'''
+		
+class ITask:
+	name = str
+	id_ = int
+	
+	def __init__( self ):
+		return
+
+	def Register( self, task_name ):
+		'''
+		Registers this task with the Ai System
+		'''
+
+class ICondition:
+	name = str
+	id_ = int
+	
+	def __init__( self ):
+		return
+
+	def Register( self, cond_name ):
+		'''
+		Registers this condition (interrupt) with the Ai System
 		'''
 
 class CAiManager:
