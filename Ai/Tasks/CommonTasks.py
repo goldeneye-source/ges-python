@@ -1,9 +1,7 @@
-from . import PYTask
-from Ai import PYBaseNPC, AiSystems
-from Ai.Utils import Memory
+from . import BaseTask
 import GEEntity, GEWeapon, GEUtil, GEAiTasks, GEGlobal as Glb, GEMPGameRules as GERules
 
-class FindEnemy( PYTask ):
+class FindEnemy( BaseTask ):
 	def Start( self, npc, data ):
 		range_sort = lambda x, y: x["range"] > y["range"]
 
@@ -21,8 +19,11 @@ class FindEnemy( PYTask ):
 		# We didn't find anything
 		self.Fail( npc, "No enemies in range" )
 
-class FindAmmo( PYTask ):
+class FindAmmo( BaseTask ):
 	def Start( self, npc, data ):
+		from Ai import PYBaseNPC, AiSystems
+		from Ai.Utils import Memory
+
 		assert isinstance( npc, PYBaseNPC )
 
 		if data <= 0:
@@ -59,8 +60,10 @@ class FindAmmo( PYTask ):
 		# We failed to find anything, fail the task
 		npc.TaskFail( GEAiTasks.TaskFail.NO_TARGET )
 
-class FindWeapon( PYTask ):
+class FindWeapon( BaseTask ):
 	def WantsWeapon( self, npc, weapon=None, memory=None ):
+		from Ai.Utils import Memory
+
 		assert isinstance( weapon, GEWeapon.CGEWeapon )
 		assert isinstance( memory, Memory.Memory )
 
@@ -93,6 +96,9 @@ class FindWeapon( PYTask ):
 			return False
 
 	def Start( self, npc, data ):
+		from Ai import PYBaseNPC, AiSystems
+		from Ai.Utils import Memory
+
 		assert isinstance( npc, PYBaseNPC )
 
 		if data <= 0:
@@ -107,7 +113,7 @@ class FindWeapon( PYTask ):
 			for m in weap_memories:
 				assert isinstance( m, Memory.Memory )
 				if self.WantsWeapon( npc, memory=m ):
-				#	print "Going for weapon %s from memory!" % m.classname
+				# 	print "Going for weapon %s from memory!" % m.classname
 					npc.SetTargetPos( m.location )
 					self.Complete( npc )
 					return
@@ -121,7 +127,7 @@ class FindWeapon( PYTask ):
 
 		for weap in weaps:
 			if self.WantsWeapon( npc, weapon=weap ):
-			#	print "Going for weapon %s that I found!" % weap.GetClassname()
+			# 	print "Going for weapon %s that I found!" % weap.GetClassname()
 				npc.SetTarget( weap )
 				self.Complete( npc )
 				return
@@ -129,8 +135,11 @@ class FindWeapon( PYTask ):
 		# We failed to find anything, fail the task
 		npc.TaskFail( GEAiTasks.TaskFail.NO_TARGET )
 
-class FindArmor( PYTask ):
+class FindArmor( BaseTask ):
 	def Start( self, npc, data ):
+		from Ai import PYBaseNPC, AiSystems
+		from Ai.Utils import Memory
+
 		assert isinstance( npc, PYBaseNPC )
 
 		if data <= 0:
@@ -162,8 +171,9 @@ class FindArmor( PYTask ):
 		# We failed to find anything, fail the task
 		npc.TaskFail( GEAiTasks.TaskFail.NO_TARGET )
 
-class FindToken( PYTask ):
+class FindToken( BaseTask ):
 	def Start( self, npc, data ):
+		from Ai import PYBaseNPC
 		assert isinstance( npc, PYBaseNPC )
 
 		target = npc.GetTokenTarget()
