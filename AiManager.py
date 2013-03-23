@@ -52,8 +52,6 @@ class PYAiManager( GEAi.CAiManager ):
 			return npc
 
 	def ClearSchedules( self ):
-		Ai.Tasks.ClearTasks()
-
 		RemoveCompiled( "%s\\Ai\\Schedules\\*" % ( PY_BASE_DIR ) )
 		RemoveCompiled( "%s\\Ai\\Tasks\\*" % ( PY_BASE_DIR ) )
 		RemoveCompiled( "%s\\Ai\\Utils\\*" % ( PY_BASE_DIR ) )
@@ -67,56 +65,32 @@ class PYAiManager( GEAi.CAiManager ):
 			task_class = npc._cust_tasks
 			sched_class = npc._cust_sched
 			cond_class = npc._cust_cond
-
-			if task_class and "_module" in task_class.__dict__:
-				task_module = task_class.__dict__["_module"]
-			else:
-				task_module = npc.__module__
-
 		else:
 			task_class = Ai.Tasks.Task
 			sched_class = Ai.Schedules.Sched
 			cond_class = Ai.Schedules.Cond
 
-			task_module = task_class.__dict__["_module"]
-
-		if task_module not in sys.modules:
-			__import__( task_module, globals(), locals() )
-
 		# Load tasks registered in Ai.Tasks.Task or the passed NPC
 		items = task_class.__dict__.items() if task_class else []
-		for task, value in items:
-			if type( value ) is str and not task.startswith( "_" ):
-				try:
-					obj = getattr( sys.modules[task_module], value )
-					if issubclass( obj, Ai.Tasks.PYTask ):
-						t = obj()
-						id_ = self.RegisterTask( "TASK_" + task )
-						if id_ != -1:
-							# Store the ID internally with the task
-							t.SetId( id_ )
-							# Link the ID with the Task class
-							setattr( task_class, task, id_ )
-							# Store the task object for retrieval by the NPC
-							Ai.Tasks.TASK_OBJS[id_] = obj
-					else:
-						setattr( task_class, task, Ai.Tasks.Task.INVALID )
-						GEUtil.Warning( "Failed to create task `%s` because %s.%s must inherit Ai.Tasks.PYTask!\n" % ( task, task_module, value ) )
-				except AttributeError:
-					setattr( task_class, task, Ai.Tasks.Task.INVALID )
-					PrintError( "Failed to create task `%s` because %s.%s is not defined!\n" % ( task, task_module, value ) )
+		for name, task in items:
+			try:
+				if issubclass( task.__class__, Ai.Tasks.BaseTask ):
+					GEUtil.DevMsg( "Registering Task: %s\n" % name )
+					task.Register( name )
+			except:
+				GEUtil.Warning( "Failed to register task: %s\n" % name )
+				print traceback.print_exc( file=sys.stderr )
 
 		# Load in conditions defined in Ai.Schedules.Cond or the passed NPC
 		items = cond_class.__dict__.items() if cond_class else []
-		for cond, value in items:
-			if value is None and not cond.startswith( "_" ):
-				id_ = self.RegisterCondition( "COND_" + cond )
-				if id_ != -1:
-					# Link the ID with the Cond class
-					setattr( cond_class, cond, id_ )
-				else:
-					setattr( cond_class, cond, Ai.Schedules.Cond.NONE )
-					GEUtil.Warning( "Failed to create condition %s\n" % cond )
+		for name, cond in items:
+			try:
+				if issubclass( cond.__class__, Ai.Schedules.BaseCondition ):
+					GEUtil.DevMsg( "Registering Condition: %s\n" % name )
+					cond.Register( name )
+			except:
+				GEUtil.Warning( "Failed to register condition: %s\n" % name )
+				print traceback.print_exc( file=sys.stderr )
 
 		# Load in schedules defined in Ai.Schedules.Sched or the passed NPC
 		items = []
@@ -132,7 +106,7 @@ class PYAiManager( GEAi.CAiManager ):
 			try:
 				if issubclass( sched.__class__, Ai.Schedules.BaseSchedule ):
 					GEUtil.DevMsg( "Registering schedule: %s\n" % name )
-					sched.Register()
+					sched.Register( name )
 			except:
 				GEUtil.Warning( "Failed to register schedule: %s\n" % name )
 				print traceback.print_exc( file=sys.stderr )
