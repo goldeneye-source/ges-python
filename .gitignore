@@ -1,3 +1,7 @@
 *.pyc
 *.pyo
 *.bat
+python.log
+gphashes.txt
+.pydevproject
+.project
