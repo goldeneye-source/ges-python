@@ -10,9 +10,6 @@ class PYAiManager( GEAi.CAiManager ):
 		self.ClearSchedules()
 		reimport.reimport( Ai )
 
-	def __del__( self ):
-		self.ClearSchedules()
-
 	def CreateNPC( self, ident, parent ):
 		tmp = FindModule( Ai, ident )
 		if not tmp:

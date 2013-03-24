@@ -102,6 +102,18 @@ def ClientCommand( player, cmd ):
 	@type player: GEPlayer.CGEPlayer
 	@type cmd: str
 	'''
+	
+def IsDedicatedServer():
+	'''
+	Are we running on a dedicated server?
+	'''
+	return bool
+	
+def IsLAN():
+	'''
+	Are we running on a LAN?
+	'''
+	return bool
 
 ''' Temporary Entity Definitions '''
 class TE:
