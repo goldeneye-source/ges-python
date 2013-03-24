@@ -11,8 +11,8 @@ class GEScenario( CBaseScenario ):
 
 	def __del__( self ):
 		# Uncomment the below line to confirm that your python scenarios are being deleted!
-		GEUtil.Warning( "Python Scenario Deleted!\n" )
-		# pass
+		#GEUtil.Warning( "Python Scenario Deleted!\n" )
+		pass
 
 	def Cleanup( self ):
 		self.ClearEventHooks()

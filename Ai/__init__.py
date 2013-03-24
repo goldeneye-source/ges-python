@@ -35,8 +35,8 @@ class PYBaseNPC( GEAi.CBaseNPC ):
 
 	def __del__( self ):
 		# Uncomment this to confirm that your python npcs are being deleted properly!
-		GEUtil.Warning( "PYBaseNPC deleted!\n" )
-		# pass
+		#GEUtil.Warning( "PYBaseNPC deleted!\n" )
+		pass
 
 	def Cleanup( self ):
 		self.__currTask = None
