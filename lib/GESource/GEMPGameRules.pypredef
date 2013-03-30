@@ -340,6 +340,8 @@ class CGETokenManager:
 		model : "models/gameplay/capturepoint.mdl"
 		skin  : 0
 		location  : GEGlobal.SPAWN_PLAYER
+		glow_color  : GEUtil.Color()
+		glow_dist   : 350.0 (inches)
 		rqd_token : None
 		rqd_team  : None
 		radius : 32.0 (inches)

@@ -1,10 +1,15 @@
 from DeathMatch import DeathMatch
-import GEPlayer, GEUtil, GEGlobal as Glb
-from GEUtil import TE
+import GEPlayer, GEUtil, GEGlobal as Glb, GEMPGameRules as GERules
+from GEUtil import TempEnt as TE, Color, TraceOpt
+from .Utils import GetPlayers
 
 USING_API = Glb.API_VERSION_1_0_0
 
 class KMTest( DeathMatch ):
+	def __init__( self ):
+		super( DeathMatch, self ).__init__()
+		self.obj_blink = True
+		
 	def GetPrintName( self ):
 		return "KM's Test Scenario"
 
@@ -18,6 +23,9 @@ class KMTest( DeathMatch ):
 		super( KMTest, self ).OnLoadGamePlay()
 		GEUtil.PrecacheSound( "player/ld_chime.wav" )
 		GEUtil.PrecacheSound( "player/lld_voodoo.wav" )
+		
+	def OnPlayerSpawn( self, player ):
+		GERules.GetRadar().SetupObjective( player, 0, "", player.GetCleanPlayerName(), Color(120, 120, 0, 255), 0, True )
 
 	def OnPlayerSay( self, player, cmd ):
 		assert isinstance( player, GEPlayer.CGEMPPlayer )
@@ -44,7 +52,7 @@ class KMTest( DeathMatch ):
 		elif cmd == "trace":
 			origin = player.GetEyePosition()
 			end = GEUtil.VectorMA( origin, player.GetAimDirection(), 300.0 )
-			hit = GEUtil.Trace( origin, end, Glb.TRACE_PLAYER, player )
+			hit = GEUtil.Trace( origin, end, TraceOpt.PLAYER, player )
 			
 			if hit == None:
 				GEUtil.HudMessage( None, "No hit!", -1, -1 )
@@ -52,7 +60,10 @@ class KMTest( DeathMatch ):
 				player = GEPlayer.ToMPPlayer( hit )
 				GEUtil.HudMessage( None, "Hit: " + hit.GetClassname(), -1, -1 )
 				GEUtil.HudMessage( None, "Player: " + player.GetPlayerName(), -1, 0.6 )
-
+		elif cmd == "obj":
+			self.obj_blink = not self.obj_blink
+			for pl in GetPlayers():
+				GERules.GetRadar().SetupObjective( pl, 0, "", pl.GetCleanPlayerName(), Color(120, 120, 0, 255), 0, self.obj_blink )
 		else:
 			return False
 
