@@ -299,10 +299,11 @@ class CGEMPPlayer( CGEPlayer ):
 		'''
 		return
 
-	def GiveAmmo( self, ammo_name, amount ):
+	def GiveAmmo( self, ammo_name, amount, suppress_sound=False ):
 		'''
 		@type ammo_name: string
 		@type amount: int
+		@type suppress_sound: boolean
 		'''
 
 class CGEBotPlayer( CGEMPPlayer ):
