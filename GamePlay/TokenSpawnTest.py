@@ -1,7 +1,7 @@
 from GamePlay import GEScenario, GEScenarioHelp
 from Utils import GetPlayers, OppositeTeam
 from Utils.GEPlayerTracker import GEPlayerTracker
-from GEUtil import Color
+from GEUtil import Color, TraceOpt
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal as Glb
 import random
 
@@ -59,9 +59,9 @@ class TokenSpawnTest( GEScenario ):
 							print_name="Golden Gun" )
 
 		tokenmgr.SetupCaptureArea( "cap1", 	limit=self.token_count, location=Glb.SPAWN_CAPAREA,
-									rqd_token=self.TOKEN1, spread=1000 )
+									rqd_token=self.TOKEN1, spread=1000, glow_color=Color( 0, 255, 0, 120 ) )
 
-		tokenmgr.SetupCaptureArea( "cap2", limit=3, location=Glb.SPAWN_CAPAREA, spread=600 )
+		tokenmgr.SetupCaptureArea( "cap2", limit=1, location=Glb.SPAWN_CAPAREA, spread=600 )
 
 		GEUtil.AddDownloadable( "models\\weapons\\ammocrate.mdl" )
 
@@ -93,13 +93,13 @@ class TokenSpawnTest( GEScenario ):
 			else:
 				GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, "^mToken Testing Disabled" )
 		elif text == "!endround":
-			self.EndRound = ~self.EndRound
+			self.EndRound = not self.EndRound
 			if self.EndRound:
 				GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, "^mRound ending enabled" )
 			else:
 				GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, "^mRound ending disabled" )
 		elif text == "!endmatch":
-			self.EndMatch = ~self.EndMatch
+			self.EndMatch = not self.EndMatch
 			if self.EndMatch:
 				GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, "^mMatch ending enabled" )
 			else:
@@ -182,7 +182,7 @@ class TokenSpawnTest( GEScenario ):
 		if self.do_token_test and GEUtil.GetTime() > self.token_next_time:
 			if self.token_do_increase and self.token_count < self.MAX_TOKENS:
 				self.token_count = self.token_count + 1
-			elif ~self.token_do_increase and self.token_count > 0:
+			elif not self.token_do_increase and self.token_count > 0:
 				self.token_count = self.token_count - 1
 
 			GEMPGameRules.GetTokenMgr().SetupToken( self.TOKEN1, limit=self.token_count )
@@ -190,7 +190,7 @@ class TokenSpawnTest( GEScenario ):
 
 			if self.token_do_increase and self.token_count == self.MAX_TOKENS:
 				self.token_do_increase = False
-			elif ~self.token_do_increase and self.token_count <= 0:
+			elif not self.token_do_increase and self.token_count <= 0:
 				self.token_do_increase = True
 
 			GEUtil.UpdateHudProgressBar( None, 0, self.token_count )
@@ -209,6 +209,7 @@ class TokenSpawnTest( GEScenario ):
 
 	def OnCaptureAreaEntered( self, area, player, token ):
 		GEMPGameRules.GetTokenMgr().CaptureToken( token )
+		print "Entered capture area "+ area.GetGroupName() + "!"
 
 	# --------------- #
 	# TOKEN FUNCTIONS #
@@ -220,6 +221,7 @@ class TokenSpawnTest( GEScenario ):
 			GEMPGameRules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 255, 255, 100 ) )
 		else:
 			GEMPGameRules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 0, 0, 100 ) )
+			GEMPGameRules.GetRadar().SetupObjective( token, Glb.TEAM_NONE, "", "", Color( 255, 0, 0, 120 ) )
 
 	def OnTokenRemoved( self, token ):
 		GEMPGameRules.GetRadar().DropRadarContact( token )
@@ -244,12 +246,18 @@ class TokenSpawnTest( GEScenario ):
 			return
 
 		end = GEUtil.VectorMA( start, direction, 500.0 )
-		hit = GEUtil.Trace( start, end, Glb.TRACE_PLAYER, player )
+		hit = GEUtil.Trace( start, end, TraceOpt.PLAYER, player )
 
 		if hit is not None:
 			GEUtil.HudMessage( None, "Hit Player!", -1, 0.6, Color( 255, 255, 255, 255 ), 1.0, 1 )
 			GEMPGameRules.GetTokenMgr().TransferToken( token, hit )
 			hit.WeaponSwitch( self.TOKEN2 )
+			return
+			
+		hit = GEUtil.Trace( start, end, TraceOpt.CAPAREA, player )
+		
+		if hit is not None:
+			GEUtil.HudMessage( None, "Hit Cap Area!", -1, 0.6, Color( 255, 255, 255, 255 ), 1.0, 1 )
 
 
 	# ---------------- #

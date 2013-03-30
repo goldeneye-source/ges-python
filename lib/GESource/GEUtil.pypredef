@@ -325,11 +325,18 @@ def VectorMA( start, direction, distance ) -> Vector:
 	'''
 	return Vector
 
+class TraceOpt:
+	PLAYER = int
+	WORLD = int
+	WEAPON = int
+	TOKEN = int
+	CAPAREA = int
+	
 def Trace( start, end, options, ignore_ent=None ) -> GEEntity.CBaseEntity:
 	'''
 	Perform a trace in the world, returns the entity that was hit by the trace,
-	if any. Options are from GEGlobal.TRACE_* and can be bitwise or'd to control
-	what type of entities will be returned when hit.
+	if any. Options are from GEUtil.TraceOpt and can be bitwise or'd to control
+	what type of entities can be returned if hit.
 	
 	@type start: Vector
 	@type end: Vector

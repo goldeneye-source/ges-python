@@ -113,12 +113,6 @@ HUDPB_SHOWBAR = int
 HUDPB_SHOWVALUE = int
 HUDPB_VERTICAL = int
 
-# For use with GEUtil.Trace
-TRACE_NONE = int
-TRACE_PLAYER = int
-TRACE_WORLD = int
-TRACE_WEAPON = int
-
 # For use with GEMPGameRules.CRadar
 RADAR_TYPE_DEFAULT = int
 RADAR_TYPE_PLAYER = int
