@@ -1,9 +1,27 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from GamePlay import GEScenario
 from Utils.GEWarmUp import GEWarmUp
 from Utils.GEPlayerTracker import GEPlayerTracker
-from Utils import GetPlayers
+from Utils import GetPlayers, _
 from GEUtil import Color
-import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
+import GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
 
 # NOTE NOTE #
 # When changing the weapon list, make sure you also change the classname list
@@ -16,7 +34,7 @@ import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
 # 	[remote|timed|proximity]mine -> npc_mine  ##(ALL MINES ARE THE SAME CLASSNAME)##
 #
 
-USING_API = GEGlobal.API_VERSION_1_0_0
+USING_API = GEGlobal.API_VERSION_1_1_0
 
 # TODO: Make this a list of lists including ammo amt given at spawn
 weapList = ["golden_pp7", "rocket_launcher", "moonraker", "rcp90", "auto_shotgun", "ar33", "phantom", "shotgun", "d5k", "cmag", "kf7", "sniper_rifle", "pp7", "grenade", "klobb"]
@@ -149,7 +167,7 @@ class GunGame( GEScenario ):
 				self.pltracker.SetValue( player, self.TR_SHOWROUND, False )
 
 				if self.RoundsPlayed < self.RoundLimit:
-					GEUtil.HudMessage( player, "#GES_GP_GUNGAME_ROUNDCOUNT\r%i\r%i" % ( self.RoundsPlayed, self.RoundLimit ), -1, 0.60, Color( 255, 255, 255, 255 ), 3.5 )
+					GEUtil.HudMessage( player, _( "#GES_GP_GUNGAME_ROUNDCOUNT", self.RoundsPlayed, self.RoundLimit ), -1, 0.60, Color( 255, 255, 255, 255 ), 3.5 )
 				else:
 					GEUtil.HudMessage( player, "#GES_GP_GUNGAME_FINALROUND", -1, 0.60, Color( 206, 43, 43, 255 ), 3.5 )
 
@@ -167,14 +185,14 @@ class GunGame( GEScenario ):
 		if self.WaitingForPlayers or self.warmupTimer.IsInWarmup():
 			return
 
-		#what exactly got killed?
+		# what exactly got killed?
 		if not victim:
 			return
 
 		# Reset the victim getting their loadout
 		self.pltracker.SetValue( victim, self.TR_WEAPSGIVEN, False )
 
-		#death by world
+		# death by world
 		if not killer or not weapon:
 			self.IncrementLevel( victim, -1 )
 			return

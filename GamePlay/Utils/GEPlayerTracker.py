@@ -1,3 +1,21 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 import GEEntity, GEPlayer, GEUtil
 from GEGlobal import EventHooks
 
@@ -19,10 +37,10 @@ class GEPlayerTracker:
 			return
 
 		uid = GEEntity.GetUID( player )
-		if uid in self.PlayerDict:
+		if uid in self._players:
 			return
 
-		self.PlayerDict[uid] = {}
+		self._players[uid] = {}
 
 	# Drops a player that is being tracked
 	def _Drop( self, player ):
@@ -30,36 +48,35 @@ class GEPlayerTracker:
 			return
 
 		uid = GEEntity.GetUID( player )
-		if uid not in self.PlayerDict:
+		if uid not in self._players:
 			return
 
-		del self.PlayerDict[uid]
+		del self._players[uid]
 
 	def Clear( self, player=None ):
 		'''Forcibly clear the player list, you will have to manually re-register players!'''
 		if not player:
-			self.PlayerDict = {}
+			self._players = {}
 		else:
 			uid = GEEntity.GetUID( player )
-			if uid in self.PlayerDict:
-				self.PlayerDict[uid] = {}
+			if uid in self._players:
+				self._players[uid] = {}
 
 	def __len__( self ):
-		return len( self.PlayerDict )
+		return len( self._players )
 
 	def __iter__( self ):
-		return self.PlayerDict.__iter__()
+		return self._players.__iter__()
 
 	def __getitem__( self, player_or_uid ):
 		if not player_or_uid:
 			return None
 
 		try:
-			if type( player_or_uid ) is int:
-					return self.PlayerDict.get( player_or_uid )
-			else:
-				uid = GEEntity.GetUID( player_or_uid )
-				return self.PlayerDict.get( uid )
+			uid = player_or_uid
+			if type( uid ) is not int:
+				uid = GEEntity.GetUID( uid )
+			return self._players[ uid ]
 		except:
 			raise KeyError( "Invalid player passed to GEPlayerTracker!" )
 
@@ -88,13 +105,13 @@ class GEPlayerTracker:
 	# Sets the specified key value on all tracked players
 	def SetValueAll( self, key, value ):
 		'''Sets the supplied key/value pair on all tracked players'''
-		for uid in self.PlayerDict.keys():
-			self.PlayerDict[uid][key] = value
+		for uid in self._players.keys():
+			self._players[uid][key] = value
 
 	def CountValues( self, key, value ):
 		'''Count the number of tracked players that have the supplied key/value pair'''
 		count = 0
-		for plr in self.PlayerDict.values():
+		for plr in self._players.values():
 			try:
 				if plr[key] == value:
 					count += 1
@@ -105,7 +122,7 @@ class GEPlayerTracker:
 	def GetPlayers( self, key=None, value=None ):
 		'''Returns a list of tracked players sliced by any supplied key and value combo'''
 		players = []
-		for player, item in self.PlayerDict.items():
+		for player, item in self._players.items():
 			# Convert to a valid player instance
 			player = GEPlayer.ToMPPlayer( player )
 			if not player:
@@ -127,9 +144,9 @@ class GEPlayerTracker:
 	def DumpData( self ):
 		'''Dumps the data contained in the tracker to the console (for debugging)'''
 		print "------- Player Tracker Dump ------"
-		for uid in self.PlayerDict.keys():
+		for uid in self._players.keys():
 			player = GEPlayer.ToMPPlayer( uid )
 			print "%s:" % player.GetCleanPlayerName()
-			for key, value in self.PlayerDict[uid].items():
+			for key, value in self._players[uid].items():
 				print "  %s => %s" % ( key, value )
 		print "------- End Dump ------"

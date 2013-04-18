@@ -1,3 +1,21 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 import GEEntity, GEWeapon
 
 def IsValidPlayerIndex( index ):
@@ -292,6 +310,25 @@ class CGEMPPlayer( CGEPlayer ):
 		
 		@type state: boolean
 		'''
+		
+	def IsInRound( self ):
+		'''
+		NOT spectating, have selected a character (i.e., not in pre-spawn),
+		and are NOT blocked from respawning by the scenario.
+		'''
+		return bool
+		
+	def IsActive( self ):
+		'''
+		NOT an observer or spectating.
+		'''
+		return bool
+		
+	def IsPreSpawn( self ):
+		'''
+		Joined server and have NOT selected a character.
+		'''
+		return bool
 
 	def GiveDefaultWeapons( self ):
 		'''

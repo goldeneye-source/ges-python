@@ -1,13 +1,33 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from GESFuncs  import *
 from GEGlobal import PY_BASE_DIR
-import sys, traceback, reimport
-import GEAi
-import Ai, Ai.Schedules, Ai.Tasks, Ai.Utils
+import sys
+import GEAi, GEUtil
+import Ai
 
 class PYAiManager( GEAi.CAiManager ):
 	def __init__( self ):
 		super( PYAiManager, self ).__init__()
 		self.ClearSchedules()
+
+		import reimport
 		reimport.reimport( Ai )
 
 	def CreateNPC( self, ident, parent ):
@@ -40,7 +60,7 @@ class PYAiManager( GEAi.CAiManager ):
 			if npc:
 				# Make sure we are using the proper API!
 				if not CheckAPI( sys.modules[module], GEGlobal.API_AI_VERSION ):
-					GEUtil.Warning( "Ai load FAILED due to API mismatch. Did you define USING_API?\n" )
+					GEUtil.Warning( "Ai load FAILED due to API mismatch.\n" )
 					return None
 
 				# Load any custom schedules defined by the npc
@@ -54,6 +74,9 @@ class PYAiManager( GEAi.CAiManager ):
 		RemoveCompiled( "%s\\Ai\\Utils\\*" % ( PY_BASE_DIR ) )
 
 	def LoadSchedules( self, npc=None ):
+		import traceback
+		import Ai.Tasks, Ai.Schedules
+
 		if not npc:
 			print "Loading Python Ai Tasks and Schedules..."
 
@@ -110,7 +133,7 @@ class PYAiManager( GEAi.CAiManager ):
 
 pyAiMangObj = None
 
-def GetAiManager():
+def GetManager():
 	global pyAiMangObj
 
 	if not pyAiMangObj:
@@ -118,10 +141,6 @@ def GetAiManager():
 
 	return pyAiMangObj
 
-def PurgeAiManager():
+def PurgeManager():
 	global pyAiMangObj
 	pyAiMangObj = None
-
-# If imported directly, attempt to create the AiManager
-if __name__ == '__main__':
-	GetAiManager()

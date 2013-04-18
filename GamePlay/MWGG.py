@@ -1,3 +1,21 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from . import GEScenario
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
 
@@ -45,21 +63,21 @@ class MWGG( GEScenario ):
 	def OnPlayerKilled( self, victim, killer, weapon ):
 		if not victim:
 			return
-
+		
 		if not killer or victim == killer:
 			# Death by world or suicide
 			if victim == self.GGOwnerId:
 				GEUtil.EmitGameplayEvent( "mwgg_suicide", "%i" % victim.GetUserID() )
 				GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_SUICIDE" )
-
+				
 			victim.AddRoundScore( -1 )
-
 		else:
 			# Regular kill
 			if victim == self.GGOwnerId:
 				GEUtil.EmitGameplayEvent( "mwgg_killed", "%i" % victim.GetUserID(), "%i" % killer.GetUserID() )
 				GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_KILLED", killer.GetPlayerName() )
-
+				
+			GEUtil.Warning( "Player was killed\n!" )
 			killer.AddRoundScore( 1 )
 
 	def OnThink( self ):

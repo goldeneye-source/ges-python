@@ -1,13 +1,31 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from GamePlay import GEScenario
 from GamePlay.Utils.GEWarmUp import GEWarmUp
-from GamePlay.Utils.GETimer import *
-import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
+from GamePlay.Utils.GETimer import TimerTracker, Timer
+import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 import random
 
-USING_API = GEGlobal.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_0_0
 
 # TODO:
-#	1. Hacker transfer on change team / disconnect
+# 	1. Hacker transfer on change team / disconnect
 #
 
 def getPlayerFromUID( uid ):
@@ -91,7 +109,7 @@ class LaunchCode( GEScenario ):
 		return "Launch Code"
 
 	def GetTeamPlay( self ):
-		return GEGlobal.TEAMPLAY_ALWAYS
+		return Glb.TEAMPLAY_ALWAYS
 
 	def OnLoadGamePlay( self ):
 		# Precache our custom items
@@ -118,10 +136,10 @@ class LaunchCode( GEScenario ):
 		self.game_roundCount = 0
 
 		# Enable team spawns
-		GEMPGameRules.SetAllowTeamSpawns( True )
+		GERules.SetAllowTeamSpawns( True )
 
-		GEMPGameRules.GetTokenMgr().SetupCaptureArea( "terminals", model="models/gameplay/capturepoint.mdl",
-													limit=4, radius=32, location=GEGlobal.SPAWN_PLAYER )
+		GERules.GetTokenMgr().SetupCaptureArea( "terminals", model="models/gameplay/capturepoint.mdl",
+													limit=4, radius=32, location=Glb.SPAWN_PLAYER )
 
 		self.CreateCVar( "lc_warmup", "30", "Warmup time before the match begins" )
 		self.CreateCVar( "lc_hackerboost", "1", "Allow the hacker to gain an ego-boost" )
@@ -129,8 +147,8 @@ class LaunchCode( GEScenario ):
 		self.CreateCVar( "lc_hacktime", "15", "Base number of seconds to hack a terminal" )
 
 	def OnRoundBegin( self ):
-		GEMPGameRules.GetRadar().SetForceRadar( True )
-		GEMPGameRules.ResetAllPlayersScores()
+		GERules.GetRadar().SetForceRadar( True )
+		GERules.ResetAllPlayersScores()
 		self.game_roundCount += 1
 
 		self.lc_DerobeHacker()
@@ -139,11 +157,11 @@ class LaunchCode( GEScenario ):
 		self.lc_CreateHackingTool()
 
 	def OnRoundEnd( self ):
-		GEMPGameRules.GetRadar().DropAllContacts()
+		GERules.GetRadar().DropAllContacts()
 
 		if self.lc_HavePlayers() and not self.game_hackersWin:
-			pTeam = GEMPGameRules.GetTeam( self.team_preventor )
-			GEMPGameRules.SetTeamWinner( pTeam )
+			pTeam = GERules.GetTeam( self.team_preventor )
+			GERules.SetTeamWinner( pTeam )
 			for t in self.game_terminals.values():
 				if not t["hacked"]:
 					pTeam.IncrementRoundScore( 1 )
@@ -163,7 +181,7 @@ class LaunchCode( GEScenario ):
 		if victim.GetUID() == self.hacker_playerUID:
 			self.hacker_hasWeapon = False
 			if self.team_preventor:
-				GEMPGameRules.GetTeam( self.team_preventor ).IncrementRoundScore( 1 )
+				GERules.GetTeam( self.team_preventor ).IncrementRoundScore( 1 )
 
 		if killer and victim != killer:
 			killer.IncrementScore( 1 )
@@ -174,14 +192,14 @@ class LaunchCode( GEScenario ):
 		aUID = area.GetUID()
 		self.game_terminals[aUID] = { "hacked" : False }
 
-		GEMPGameRules.GetRadar().AddRadarContact( area, GEGlobal.RADAR_TYPE_TOKEN, True, "sprites/hud/radar/capture_point", self.lc_GetHackerTeamColor() )
+		GERules.GetRadar().AddRadarContact( area, Glb.RADAR_TYPE_TOKEN, True, "sprites/hud/radar/capture_point", self.lc_GetHackerTeamColor() )
 
 	def OnCaptureAreaRemoved( self, area ):
 		aUID = area.GetUID()
 		if self.game_terminals.has_key( aUID ):
 			del self.game_terminals[aUID]
 
-		GEMPGameRules.GetRadar().DropRadarContact( area )
+		GERules.GetRadar().DropRadarContact( area )
 
 	def OnCaptureAreaEntered( self, area, player, token ):
 		aUID = area.GetUID()
@@ -241,27 +259,27 @@ class LaunchCode( GEScenario ):
 			return True
 
 	def OnTokenSpawned( self, token ):
-		GEMPGameRules.GetRadar().AddRadarContact( token, GEGlobal.RADAR_TYPE_TOKEN, True )
+		GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True )
 
 	def OnTokenRemoved( self, token ):
-		GEMPGameRules.GetRadar().DropRadarContact( token )
+		GERules.GetRadar().DropRadarContact( token )
 
 	def OnTokenPicked( self, token, player ):
 		self.hacker_hasTool = True
-		GEUtil.PlaySoundToPlayer( player, "GEGamePlay.Token_Grab" )
-		GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, self.TAG + " The hacker picked up the Insta-Hack" )
+		GEUtil.PlaySoundTo( player, "GEGamePlay.Token_Grab" )
+		GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, self.TAG + " The hacker picked up the Insta-Hack" )
 		GEUtil.HudMessage( self.team_hacker, "The hacker has the Insta-Hack, protect them at all costs!", -1, 0.65, self.COLOR_NOTICE, 4.0, 1 )
 		GEUtil.HudMessage( self.team_preventor, "Warning! The hacker has the Insta-Hack!!", -1, 0.65, self.COLOR_NOTICE, 4.0, 1 )
-		GEUtil.PlaySoundToTeam( self.team_hacker, "GEGamePlay.Token_Grab" )
-		GEUtil.PlaySoundToTeam( self.team_preventor, "GEGamePlay.Token_Grab_Enemy" )
-		GEMPGameRules.GetRadar().DropRadarContact( token )
+		GEUtil.PlaySoundTo( self.team_hacker, "GEGamePlay.Token_Grab" )
+		GEUtil.PlaySoundTo( self.team_preventor, "GEGamePlay.Token_Grab_Enemy" )
+		GERules.GetRadar().DropRadarContact( token )
 
 	def OnTokenDropped( self, token, player ):
 		self.hacker_hasTool = False
-		GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, self.TAG + " The Insta-Hack has been destroyed" )
+		GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, self.TAG + " The Insta-Hack has been destroyed" )
 		GEUtil.HudMessage( None, "The Insta-Hack has been destroyed!", -1, 0.65, self.COLOR_NOTICE, 4.0, 1 )
-		GEUtil.PlaySoundToPlayer( None, "GEGamePlay.Token_Drop_Friend" )
-		GEMPGameRules.GetTokenMgr().RemoveTokenType( self.TOOL_CLASSNAME )
+		GEUtil.PlaySoundTo( None, "GEGamePlay.Token_Drop_Friend" )
+		GERules.GetTokenMgr().RemoveTokenType( self.TOOL_CLASSNAME )
 
 	def OnThink( self ):
 		if self.game_lowPlayers:
@@ -300,9 +318,9 @@ class LaunchCode( GEScenario ):
 		if text == "!debug":
 			self.__debug = not self.__debug
 			if self.__debug:
-				GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, self.TAG + "Debugging Enabled" )
+				GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, self.TAG + "Debugging Enabled" )
 			else:
-				GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, self.TAG + "Debugging Disabled" )
+				GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, self.TAG + "Debugging Disabled" )
 
 			return True
 
@@ -310,7 +328,7 @@ class LaunchCode( GEScenario ):
 			if player.GetUID() == self.hacker_playerUID and self.hacker_hasTool and self.game_currTerminalUID:
 				self.lc_OnHackCompleted()
 				self.timer_hacking.Stop()
-				GEMPGameRules.GetTokenMgr().RemoveTokenType( self.TOOL_CLASSNAME )
+				GERules.GetTokenMgr().RemoveTokenType( self.TOOL_CLASSNAME )
 				return True
 
 		return False
@@ -355,11 +373,11 @@ class LaunchCode( GEScenario ):
 			self.team_preventor = tmp
 		else:
 			# First time? Pick a random team
-			self.team_hacker = random.choice( [GEGlobal.TEAM_MI6, GEGlobal.TEAM_JANUS] )
-			if self.team_hacker == GEGlobal.TEAM_JANUS:
-				self.team_preventor = GEGlobal.TEAM_MI6
+			self.team_hacker = random.choice( [Glb.TEAM_MI6, Glb.TEAM_JANUS] )
+			if self.team_hacker == Glb.TEAM_JANUS:
+				self.team_preventor = Glb.TEAM_MI6
 			else:
-				self.team_preventor = GEGlobal.TEAM_JANUS
+				self.team_preventor = Glb.TEAM_JANUS
 
 	def lc_ChooseHacker( self, force=False ):
 		if not self.team_hacker:
@@ -384,21 +402,21 @@ class LaunchCode( GEScenario ):
 
 	def lc_CanHackerSwitch( self ):
 		timeIn = GEUtil.GetTime() - self.game_startTime;
-		plrCount = GEMPGameRules.GetNumActiveTeamPlayers( self.team_hacker )
+		plrCount = GERules.GetNumActiveTeamPlayers( self.team_hacker )
 		if self.hacker_playerUID and plrCount > 1 and not self.hacker_switched and timeIn < 15.0:
 			return True
 		return False
 
 	def lc_CreateHackingTool( self ):
-		mgr = GEMPGameRules.GetTokenMgr()
-		mgr.SetupToken( self.TOOL_CLASSNAME, limit=1, location=GEGlobal.SPAWN_AMMO,
+		mgr = GERules.GetTokenMgr()
+		mgr.SetupToken( self.TOOL_CLASSNAME, limit=1, location=Glb.SPAWN_AMMO,
 					allow_switch=True, glow_color=GEUtil.CColor( 80, 80, 80, 255 ), glow_dist=500.0 )
 
 	def lc_EnrobeHacker( self, uid ):
 		player = getPlayerFromUID( uid )
 		if player is not None:
 			model = self.MI6_HACKER_COSTUME
-			if player.GetTeamNumber() == GEGlobal.TEAM_JANUS:
+			if player.GetTeamNumber() == Glb.TEAM_JANUS:
 				model = self.JANUS_HACKER_COSTUME
 
 			# Store away his old costume and set him as the hacker
@@ -406,7 +424,7 @@ class LaunchCode( GEScenario ):
 			self.hacker_oldSkin = player.GetSkin()
 			player.SetPlayerModel( model, 0 )
 			# Add me to the radar as always visible
-			GEMPGameRules.GetRadar().AddRadarContact( player, GEGlobal.RADAR_TYPE_PLAYER, True, "sprites/hud/radar/run", GEUtil.CColor( 255, 180, 225, 170 ) )
+			GERules.GetRadar().AddRadarContact( player, Glb.RADAR_TYPE_PLAYER, True, "sprites/hud/radar/run", GEUtil.CColor( 255, 180, 225, 170 ) )
 			# Reset notices
 			self.hacker_notice = 0
 			self.hacker_playerUID = uid
@@ -418,7 +436,7 @@ class LaunchCode( GEScenario ):
 			player.SetPlayerModel( self.hacker_oldCostume, self.hacker_oldSkin )
 			player.StripAllWeapons()
 			player.GiveDefaultWeapons()
-			GEMPGameRules.GetRadar().DropRadarContact( player )
+			GERules.GetRadar().DropRadarContact( player )
 
 		self.hacker_playerUID = None
 
@@ -426,13 +444,13 @@ class LaunchCode( GEScenario ):
 		player = getPlayerFromUID( self.hacker_playerUID )
 		if player is not None:
 			if onlyAmmo:
-				player.GiveAmmo( GEGlobal.AMMO_9MM, 16 )
+				player.GiveAmmo( Glb.AMMO_9MM, 16 )
 			else:
 				self.hacker_hasWeapon = False
 				player.StripAllWeapons()
 				player.GiveNamedWeapon( "weapon_slappers", 0 )
-				player.GiveNamedWeapon( "weapon_dd44", 14 ) # DD44 starts w/ 10 bullets: 8|16
-				player.SetArmor( int( GEGlobal.GE_MAX_ARMOR ) )
+				player.GiveNamedWeapon( "weapon_dd44", 14 )  # DD44 starts w/ 10 bullets: 8|16
+				player.SetArmor( int( Glb.GE_MAX_ARMOR ) )
 
 	def lc_OnHackTimer( self, timer, update_type ):
 		assert isinstance( timer, Timer )
@@ -450,11 +468,11 @@ class LaunchCode( GEScenario ):
 			GEUtil.UpdateHudProgressBar( None, 1, timer.GetCurrentTime() )
 
 	def lc_OnHackCompleted( self ):
-		GEMPGameRules.GetTeam( self.team_hacker ).IncrementRoundScore( 1 )
-		GEMPGameRules.GetRadar().DropRadarContact( GEEntity.GetEntByUID( self.game_lastTerminalUID ) )
+		GERules.GetTeam( self.team_hacker ).IncrementRoundScore( 1 )
+		GERules.GetRadar().DropRadarContact( GEEntity.GetEntByUID( self.game_lastTerminalUID ) )
 
-		GEUtil.PlaySoundToTeam( self.team_hacker, "GEGameplay.Token_Capture_Friend", True )
-		GEUtil.PlaySoundToTeam( self.team_preventor, "GEGamePlay.Token_Capture_Enemy", True )
+		GEUtil.PlaySoundTo( self.team_hacker, "GEGameplay.Token_Capture_Friend", True )
+		GEUtil.PlaySoundTo( self.team_preventor, "GEGamePlay.Token_Capture_Enemy", True )
 		GEUtil.HudMessage( None, "The hacker has taken over a terminal!", -1, -1, self.COLOR_NOTICE, 2.0, 2 )
 
 		self.game_terminals[self.game_lastTerminalUID]["hacked"] = True
@@ -464,7 +482,7 @@ class LaunchCode( GEScenario ):
 
 	def lc_OnEndRoundTimer( self, timer, update_type ):
 		if update_type is Timer.UPDATE_FINISH:
-			GEMPGameRules.EndRound()
+			GERules.EndRound()
 
 	def lc_CheckHackerWin( self ):
 		for t in self.game_terminals.values():
@@ -473,14 +491,14 @@ class LaunchCode( GEScenario ):
 
 		# If we made it here, hackers won! End the round
 		self.game_hackersWin = True
-		hTeam = GEMPGameRules.GetTeam( self.team_hacker )
-		GEMPGameRules.SetTeamWinner( hTeam )
+		hTeam = GERules.GetTeam( self.team_hacker )
+		GERules.SetTeamWinner( hTeam )
 		hTeam.IncrementRoundScore( len( self.game_terminals ) )
 		# End the round in 3 seconds (this should be a variable in EndRound(...))
 		self.timer_endRound.Start( 3.0 )
 
 	def lc_GetHackerTeamColor( self ):
-		if self.team_hacker == GEGlobal.TEAM_MI6:
+		if self.team_hacker == Glb.TEAM_MI6:
 			return self.COLOR_RADAR_MI6
 		else:
 			return self.COLOR_RADAR_JANUS
@@ -495,7 +513,7 @@ class LaunchCode( GEScenario ):
 		return list
 
 	def lc_HavePlayers( self ):
-		if GEMPGameRules.GetNumActivePlayers() >= self.MIN_PLAYERS:
+		if GERules.GetNumActivePlayers() >= self.MIN_PLAYERS:
 			return True
 		return False
 

@@ -1,8 +1,26 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from . import GEScenario, GEScenarioHelp
-from Utils import plural, clamp, choice
-import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
+from Utils import plural, clamp, choice, _
+import GEEntity, GEPlayer, GEUtil, GEMPGameRules, GEGlobal
 
-USING_API = GEGlobal.API_VERSION_1_0_0
+USING_API = GEGlobal.API_VERSION_1_1_0
 EP_SHOUT_COLOR = GEUtil.CColor( 240, 200, 120, 170 )
 FT_DEBUG = False
 
@@ -172,7 +190,7 @@ class LivingDaylights( GEScenario ):
 
 	def ft_announceescaping( self, flag ):
 		player = ep_player_by_id( flag.player_id )
-		GEUtil.HudMessage( player, plural( flag.escapes, "#GES_GP_LD_ESCAPED", "\r%i" % flag.escapes ), -1, -1, EP_SHOUT_COLOR, 2.0 )
+		GEUtil.HudMessage( player, _( plural( flag.escapes, "#GES_GP_LD_ESCAPED" ), flag.escapes ), -1, -1, EP_SHOUT_COLOR, 2.0 )
 		GEUtil.PlaySoundTo( player, "Buttons.beep_ok" )
 		ep_shout( "Escaped successfully." )
 
@@ -302,7 +320,7 @@ class LivingDaylights( GEScenario ):
 			if quality >= 0:
 				if self.ft_gameislive():
 					self.flaglist[flagindex].age_item( quality, 1.0 )
-#					ep_shout("Consumed %s for %d EXP." % (itemname, self.flaglist[flagindex].BONUS_ITEM[quality]))
+# 					ep_shout("Consumed %s for %d EXP." % (itemname, self.flaglist[flagindex].BONUS_ITEM[quality]))
 		return True
 
 	def ft_perk_speed( self, flagindex ):
@@ -365,16 +383,16 @@ class LivingDaylights( GEScenario ):
 		if GEMPGameRules.IsTeamplay():
 			if player is None:
 				if self.ShowMI6Flags:
-					GEUtil.HudMessage( GEGlobal.TEAM_MI6, "#GES_GP_LD_TEAMHOLDS\r%i\r%i" % ( self.MI6Flags, self.FlagCount ), -1, 0.65, self.COLOR_MI6, 5.0, 1 )
+					GEUtil.HudMessage( GEGlobal.TEAM_MI6, _( "#GES_GP_LD_TEAMHOLDS", self.MI6Flags, self.FlagCount ), -1, 0.65, self.COLOR_MI6, 5.0, 1 )
 				if self.ShowJanusFlags:
-					GEUtil.HudMessage( GEGlobal.TEAM_JANUS, "#GES_GP_LD_TEAMHOLDS\r%i\r%i" % ( self.JanusFlags, self.FlagCount ), -1, 0.65, self.COLOR_JS, 5.0, 1 )
+					GEUtil.HudMessage( GEGlobal.TEAM_JANUS, _( "#GES_GP_LD_TEAMHOLDS", self.JanusFlags, self.FlagCount ), -1, 0.65, self.COLOR_JS, 5.0, 1 )
 
 				self.ShowMI6Flags = self.ShowJanusFlags = False
 			else:
 				if player.GetTeamNumber() == GEGlobal.TEAM_MI6:
-					GEUtil.HudMessage( player, "#GES_GP_LD_TEAMHOLDS\r%i\r%i" % ( self.MI6Flags, self.FlagCount ), -1, 0.65, self.COLOR_MI6, 5.0, 1 )
+					GEUtil.HudMessage( player, _( "#GES_GP_LD_TEAMHOLDS", self.MI6Flags, self.FlagCount ), -1, 0.65, self.COLOR_MI6, 5.0, 1 )
 				else:
-					GEUtil.HudMessage( player, "#GES_GP_LD_TEAMHOLDS\r%i\r%i" % ( self.JanusFlags, self.FlagCount ), -1, 0.65, self.COLOR_JS, 5.0, 1 )
+					GEUtil.HudMessage( player, _( "#GES_GP_LD_TEAMHOLDS", self.JanusFlags, self.FlagCount ), -1, 0.65, self.COLOR_JS, 5.0, 1 )
 
 
 	def ft_teambalancebars( self ):
@@ -486,17 +504,17 @@ class LivingDaylights( GEScenario ):
 				GEUtil.EmitGameplayEvent( "ld_flagpoint", "%i" % victim.GetUserID(), "-1", "suicide", "%i" % suicide_bounty )
 			return
 
-		#slap and snatch TODO: Verify
+		# slap and snatch TODO: Verify
 		if weapon != None and weapon.GetClassname() == "weapon_slappers" and flagindex >= 0:
 			delta = choice( flagindex >= 0, bounty, 0 )
 			if delta > 0:
 				ep_incrementscore( victim, -delta )
-				GEUtil.HudMessage( victim, plural( delta, "#GES_GP_LD_LOSEPOINTS", "\r%i" % delta ), -1, -1, EP_SHOUT_COLOR, 2.0 )
+				GEUtil.HudMessage( victim, _( plural( delta, "#GES_GP_LD_LOSEPOINTS" ), delta ), -1, -1, EP_SHOUT_COLOR, 2.0 )
 				ep_incrementscore( killer, delta )
-				GEUtil.HudMessage( killer, plural( delta, "#GES_GP_LD_STOLEPOINTS", "\r%i" % delta ), -1, -1, EP_SHOUT_COLOR, 2.0 )
+				GEUtil.HudMessage( killer, _( plural( delta, "#GES_GP_LD_STOLEPOINTS" ), delta ), -1, -1, EP_SHOUT_COLOR, 2.0 )
 				GEUtil.EmitGameplayEvent( "ld_flagpoint", "%i" % victim.GetUserID(), "%i" % killer.GetUserID(), "slapperkill", "%i" % -delta )
 
-		#credit if token will be removed from play. TODO: Verify
+		# credit if token will be removed from play. TODO: Verify
 		if self.ft_flagdebt() < 0:
 			if flagindex >= 0:
 				ep_incrementscore( killer, self.flaglist[flagindex].level )
@@ -520,6 +538,7 @@ class LivingDaylights( GEScenario ):
 
 		GEUtil.PrecacheSound( "GEGamePlay.Token_Chime" )
 		GEUtil.PrecacheSound( "GEGamePlay.Token_Knock" )
+		GEUtil.PrecacheSound( "GEGamePlay.Token_Grab" )
 		GEUtil.PrecacheSound( "Buttons.beep_ok" )
 		GEUtil.PrecacheSound( "Buttons.beep_denied" )
 
@@ -554,7 +573,7 @@ class LivingDaylights( GEScenario ):
 	def CanPlayerHaveItem( self, player, item ):
 # 		itemname = entity.GetClassname()
 		return self.ft_omnomnomnom( player, item.GetClassname() )
-#		return not (itemname.startswith("item_armorvest") and self.ft_flagindexbyplayer(player) >= 0)
+# 		return not (itemname.startswith("item_armorvest") and self.ft_flagindexbyplayer(player) >= 0)
 
 	def ShouldForcePickup( self, player, item ):
 		if self.ft_playercarries( player ):
@@ -569,7 +588,7 @@ class LivingDaylights( GEScenario ):
 		killer = GEPlayer.ToMPPlayer( info.GetAttacker() )
 		v_flagindex = self.ft_flagindexbyplayer( victim )
 		k_flagindex = self.ft_flagindexbyplayer( killer )
-		#ep_shout("[SDCD] %d %d" % (v_flagindex, k_flagindex) )
+		# ep_shout("[SDCD] %d %d" % (v_flagindex, k_flagindex) )
 		if v_flagindex >= 0:
 			# Suicide or friendly fire exacerbates but does not trigger escape.
 			total_damage = health + armour

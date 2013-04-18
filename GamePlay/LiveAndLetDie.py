@@ -1,3 +1,21 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from . import GEScenario
 from Utils import choice, clamp, plural, GetPlayers
 from Utils.GEPlayerTracker import GEPlayerTracker
@@ -5,7 +23,7 @@ import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
 import random
 import GEGamePlay
 
-USING_API = GEGlobal.API_VERSION_1_0_0
+USING_API = GEGlobal.API_VERSION_1_1_0
 EP_SHOUT_COLOR = GEUtil.CColor( 240, 200, 120, 170 )
 LLD_DEBUG = False
 
@@ -65,7 +83,7 @@ def ep_weightedselect_random( weightlist ):
 	# Should never get here, but floats do happen
 	return len( weightlist ) - 1
 
-#///////////////////////////////////////////////////////////////////////////////
+# ///////////////////////////////////////////////////////////////////////////////
 # Globals for LALD
 TR_INROUND = "inround"
 TR_SPAWNED = "spawned"
@@ -398,7 +416,7 @@ class LiveAndLetDie( GEScenario ):
 				if impact >= victim.GetArmor():
 # Baron is not eliminated, but is zeroed-out.
 					self.baron_health_cache = victim.GetHealth() + self.BARON_SPAWN_RECOVER
-#TODO: Maybe move this to On Killed?
+# TODO: Maybe move this to On Killed?
 					self.lld_baron_levelup()
 					self.baron_voodoo += choice( GEUtil.GetCVarValue( self.CVAR_BLOODLUST ) != "0", self.BARON_VOODOO_BLOODLUST_LEAD, 0 )
 					health = victim.GetHealth()
