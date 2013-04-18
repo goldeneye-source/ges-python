@@ -1,11 +1,29 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from GamePlay import GEScenario, GEScenarioHelp
-from Utils import OppositeTeam
+from Utils import OppositeTeam, _
 from Utils.GEOvertime import GEOvertime
 from Utils.GETimer import EndRoundCallback, TimerTracker, Timer
 from Utils.GEWarmUp import GEWarmUp
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 
-USING_API = Glb.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 FL_DEBUG = False
 
 class Token:
@@ -225,12 +243,12 @@ class CaptureTheKey( GEScenario ):
 			# Exit overtime if a team is eliminated, awarding the other team a point
 			if GERules.GetNumInRoundTeamPlayers( Glb.TEAM_MI6 ) == 0:
 				GERules.GetTeam( Glb.TEAM_JANUS ).AddRoundScore( 1 )
-				GEUtil.HudMessage( None, "#GES_GP_CTK_OVERTIME_SCORE\rJanus", -1, -1, self.COLOR_NEUTRAL, 5.0 )
+				GEUtil.HudMessage( None, _( "#GES_GP_CTK_OVERTIME_SCORE", "Janus" ), -1, -1, self.COLOR_NEUTRAL, 5.0 )
 				self.timerTracker.OneShotTimer( self.OVERTIME_DELAY, EndRoundCallback )
 				self.game_inOvertimeDelay = True
 			elif GERules.GetNumInRoundTeamPlayers( Glb.TEAM_JANUS ) == 0:
 				GERules.GetTeam( Glb.TEAM_MI6 ).AddRoundScore( 1 )
-				GEUtil.HudMessage( None, "#GES_GP_CTK_OVERTIME_SCORE\rMI6", -1, -1, self.COLOR_NEUTRAL, 5.0 )
+				GEUtil.HudMessage( None, _( "#GES_GP_CTK_OVERTIME_SCORE", "MI6" ), -1, -1, self.COLOR_NEUTRAL, 5.0 )
 				self.timerTracker.OneShotTimer( self.OVERTIME_DELAY, EndRoundCallback )
 				self.game_inOvertimeDelay = True
 			elif not self.overtime.CheckOvertime():
@@ -272,7 +290,7 @@ class CaptureTheKey( GEScenario ):
 		if self.warmupTimer.IsInWarmup() or not victim:
 			return
 
-		#death by world
+		# death by world
 		if not killer:
 			victim.AddRoundScore( -1 )
 			return
@@ -288,7 +306,7 @@ class CaptureTheKey( GEScenario ):
 			if victim == self.game_tokens[victimTeam].GetOwner():
 				clr_hint = '^i' if killerTeam == Glb.TEAM_MI6 else '^r'
 				GEUtil.EmitGameplayEvent( "ctk_tokendefended", "%i" % killer.GetUserID(), "%i" % victim.GetUserID(), "%i" % victimTeam )
-				GEUtil.PostDeathMessage( "#GES_GP_CTK_DEFENDED\r%s\r%s\r%s" % ( clr_hint, killer.GetCleanPlayerName(), self.ctk_TokenName( victimTeam ) ) )
+				GEUtil.PostDeathMessage( _( "#GES_GP_CTK_DEFENDED", clr_hint, killer.GetCleanPlayerName(), self.ctk_TokenName( victimTeam ) ) )
 				killer.AddRoundScore( 2 )
 			else:
 				killer.AddRoundScore( 1 )
@@ -367,8 +385,8 @@ class CaptureTheKey( GEScenario ):
 		player.SetSpeedMultiplier( self.rules_speedMultiplier )
 		player.SetScoreBoardColor( Glb.SB_COLOR_WHITE )
 
-		msgFriend = "#GES_GP_CTK_PICKED_FRIEND\r%s\r%s" % ( player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
-		msgEnemy = "#GES_GP_CTK_PICKED_FOE\r%s\r%s" % ( player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
+		msgFriend = _( "#GES_GP_CTK_PICKED_FRIEND", player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
+		msgEnemy = _( "#GES_GP_CTK_PICKED_FOE", player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
 
 		self.ctk_PostMessage( msgFriend, tokenTeam, tokenTeam )
 		self.ctk_PostMessage( msgEnemy, otherTeam, tokenTeam )
@@ -395,7 +413,7 @@ class CaptureTheKey( GEScenario ):
 		player.SetSpeedMultiplier( 1.0 )
 		player.SetScoreBoardColor( Glb.SB_COLOR_NORMAL )
 
-		msg = "#GES_GP_CTK_DROPPED\r%s\r%s" % ( player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
+		msg = _( "#GES_GP_CTK_DROPPED", player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
 
 		self.ctk_PostMessage( msg, tokenTeam, tokenTeam )
 		self.ctk_PostMessage( msg, otherTeam, tokenTeam )
@@ -419,7 +437,7 @@ class CaptureTheKey( GEScenario ):
 					GERules.GetTokenMgr().TransferToken( tokendef.hent.Get(), None )
 				else:
 					timeleft = max( 1, int( tokendef.next_drop_time - GEUtil.GetTime() ) )
-					GEUtil.HudMessage( player, "#GES_GP_CTK_TOKEN_DROP\r%i" % timeleft, -1, self.MSG_MISC_YPOS, self.COLOR_NEUTRAL, 2.0, self.MSG_MISC_CHANNEL )
+					GEUtil.HudMessage( player, _( "#GES_GP_CTK_TOKEN_DROP", timeleft ), -1, self.MSG_MISC_YPOS, self.COLOR_NEUTRAL, 2.0, self.MSG_MISC_CHANNEL )
 				return True
 
 		return False
@@ -484,7 +502,7 @@ class CaptureTheKey( GEScenario ):
 		GEUtil.PlaySoundTo( tokenTeam, "GEGamePlay.Token_Capture_Friend", True )
 		GEUtil.PlaySoundTo( otherTeam, "GEGamePlay.Token_Capture_Enemy", True )
 
-		msg = "#GES_GP_CTK_CAPTURE\r%s\r%s" % ( holder.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
+		msg = _( "#GES_GP_CTK_CAPTURE", holder.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
 		self.ctk_PostMessage( msg )
 
 		GEUtil.PostDeathMessage( msg )

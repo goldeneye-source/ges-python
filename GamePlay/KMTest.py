@@ -1,15 +1,33 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from DeathMatch import DeathMatch
 import GEPlayer, GEUtil, GEGlobal as Glb, GEMPGameRules as GERules
 from GEUtil import TempEnt as TE, Color, TraceOpt
-from .Utils import GetPlayers
+from .Utils import GetPlayers, _
 
-USING_API = Glb.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 
 class KMTest( DeathMatch ):
 	def __init__( self ):
 		super( DeathMatch, self ).__init__()
 		self.obj_blink = True
-		
+
 	def GetPrintName( self ):
 		return "KM's Test Scenario"
 
@@ -23,9 +41,9 @@ class KMTest( DeathMatch ):
 		super( KMTest, self ).OnLoadGamePlay()
 		GEUtil.PrecacheSound( "player/ld_chime.wav" )
 		GEUtil.PrecacheSound( "player/lld_voodoo.wav" )
-		
+
 	def OnPlayerSpawn( self, player ):
-		GERules.GetRadar().SetupObjective( player, 0, "", player.GetCleanPlayerName(), Color(120, 120, 0, 255), 0, True )
+		GERules.GetRadar().SetupObjective( player, 0, "", player.GetCleanPlayerName(), Color( 120, 120, 0, 255 ), 0, True )
 
 	def OnPlayerSay( self, player, cmd ):
 		assert isinstance( player, GEPlayer.CGEMPPlayer )
@@ -53,7 +71,7 @@ class KMTest( DeathMatch ):
 			origin = player.GetEyePosition()
 			end = GEUtil.VectorMA( origin, player.GetAimDirection(), 300.0 )
 			hit = GEUtil.Trace( origin, end, TraceOpt.PLAYER, player )
-			
+
 			if hit == None:
 				GEUtil.HudMessage( None, "No hit!", -1, -1 )
 			else:
@@ -63,7 +81,14 @@ class KMTest( DeathMatch ):
 		elif cmd == "obj":
 			self.obj_blink = not self.obj_blink
 			for pl in GetPlayers():
-				GERules.GetRadar().SetupObjective( pl, 0, "", pl.GetCleanPlayerName(), Color(120, 120, 0, 255), 0, self.obj_blink )
+				GERules.GetRadar().SetupObjective( pl, 0, "", pl.GetCleanPlayerName(), Color( 120, 120, 0, 255 ), 0, self.obj_blink )
+		elif cmd == "box":
+			GEUtil.PopupMessage( None, "Default Title",
+				"This is a really long message that should not be "
+				"displayed for more than four lines I don't want to "
+				"keep typing but I will god damnit! I really don't "
+				"like typing so I am eventually going to stop doing "
+				"it but not anytime soon baby cakes!" )
 		else:
 			return False
 

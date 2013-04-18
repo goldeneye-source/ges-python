@@ -1,3 +1,21 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from GEGamePlay import CBaseScenario, CScenarioHelp
 import GEGlobal, GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules
 
@@ -11,7 +29,7 @@ class GEScenario( CBaseScenario ):
 
 	def __del__( self ):
 		# Uncomment the below line to confirm that your python scenarios are being deleted!
-		#GEUtil.Warning( "Python Scenario Deleted!\n" )
+		# GEUtil.Warning( "Python Scenario Deleted!\n" )
 		pass
 
 	def Cleanup( self ):
@@ -70,12 +88,20 @@ class GEScenario( CBaseScenario ):
 		pass
 
 	def OnRoundBegin( self ):
+		"""Called after the world reloads and prior to players being spawned"""
+		# Reset player's scores
 		GEMPGameRules.ResetAllPlayersScores()
 
 	def OnRoundEnd( self ):
+		"""Called once the round time ends and prior to scoring calculations"""
 		pass
 
 	def OnPlayerSpawn( self, player ):
+		"""Called when a player spawns into the game world (ie, not spectating)"""
+		pass
+
+	def OnPlayerObserver( self, player ):
+		"""Called when a player enters observer mode"""
 		pass
 
 	def OnPlayerKilled( self, victim, killer, weapon ):

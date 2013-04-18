@@ -1,26 +1,43 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from . import GEScenario
-from GamePlay.Utils.GEPlayerTracker import GEPlayerTracker
-import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
+from .Utils import GetPlayers
+from .Utils.GEPlayerTracker import GEPlayerTracker
+import GEUtil, GEMPGameRules as GERules, GEGlobal as Glb
 
-USING_API = GEGlobal.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 
-#For some odd reason, you only live twice...
+TR_ELIMINATED = "eliminated"
+TR_SPAWNED = "spawned"
+
+# For some odd reason, you only live twice...
 class YOLT( GEScenario ):
-	TR_ELIMINATED = "eliminated";
-	TR_SPAWNED = "spawned";
-
 	def __init__( self ):
 		GEScenario.__init__( self )
 
-		self.waitingForPlayers = False
-		self.radarSet = False
-		self.dmBounty = 0
-		self.mi6Bounty = 0
-		self.janusBounty = 0
 		self.pltracker = GEPlayerTracker( self )
 
+		self.game_inWaitTime = False
+		self.game_bounty = None
+
 	def GetTeamPlay( self ):
-		return GEGlobal.TEAMPLAY_TOGGLE
+		return Glb.TEAMPLAY_TOGGLE
 
 	def Cleanup( self ):
 		GEScenario.Cleanup( self )
@@ -33,202 +50,188 @@ class YOLT( GEScenario ):
 		help_obj.SetDescription( "#GES_GP_YOLT_HELP" )
 
 	def GetGameDescription( self ):
-		if GEMPGameRules.IsTeamplay():
+		if GERules.IsTeamplay():
 			return "Team YOLT"
 		else:
 			return "YOLT"
 
+	def OnLoadGamePlay( self ):
+		if GERules.GetNumActivePlayers() < 2:
+			self.game_inWaitTime = True
+
 	def OnPlayerConnect( self, player ):
-		self.pltracker.SetValue( player, self.TR_SPAWNED, False )
-		if GEMPGameRules.IsRoundLocked():
-			# Immediately eliminate the player if the round is locked
-			self.pltracker.SetValue( player, self.TR_ELIMINATED, True )
+		self.pltracker[player][TR_SPAWNED] = False
+		self.pltracker[player][TR_ELIMINATED] = True
 
 	def OnPlayerDisconnect( self, player ):
-		if GEMPGameRules.IsRoundLocked() and player.GetDeaths() < 2 and player.GetTeamNumber() != GEGlobal.TEAM_SPECTATOR:
-			self.UpdatePlayerBounty( player )
+		if GERules.IsRoundLocked() and self.yolt_IsInPlay( player ):
+			self.yolt_DecreaseBounty( player )
 
 	def CanPlayerChangeTeam( self, player, oldTeam, newTeam ):
-		if GEMPGameRules.IsRoundLocked():
-			if  self.IsInPlay( player ) and oldTeam != GEGlobal.TEAM_SPECTATOR:
-				self.UpdatePlayerBounty( player )
-			elif oldTeam == GEGlobal.TEAM_SPECTATOR:
-				GEUtil.PopupMessage( player, "#GES_GPH_CANTJOIN_TITLE", "#GES_GPH_CANTJOIN", "", 5.0, False )
-			else:
-				GEUtil.PopupMessage( player, "#GES_GPH_ELIMINATED_TITLE", "#GES_GPH_ELIMINATED", "", 5.0, False )
+		if GERules.IsRoundLocked():
+			if self.yolt_IsInPlay( player ):
+				self.yolt_DecreaseBounty( player )
 
-			# Changing teams will automatically eliminate you
-			self.pltracker.SetValue( player, self.TR_ELIMINATED, True )
+			if oldTeam == Glb.TEAM_SPECTATOR:
+				GEUtil.PopupMessage( player, "#GES_GPH_CANTJOIN_TITLE", "#GES_GPH_CANTJOIN" )
+			else:
+				GEUtil.PopupMessage( player, "#GES_GPH_ELIMINATED_TITLE", "#GES_GPH_ELIMINATED" )
+
+		# Changing teams will automatically eliminate you
+		self.pltracker[player][TR_ELIMINATED] = True
 
 		return True
 
 	def OnPlayerSpawn( self, player ):
-		# Record us as "spawned"
-		if player.GetTeamNumber() != GEGlobal.TEAM_SPECTATOR:
-			self.pltracker.SetValue( player, self.TR_SPAWNED, True )
+		if player.GetTeamNumber() != Glb.TEAM_SPECTATOR:
+			# Update our tracker variables
+			self.pltracker[player][TR_SPAWNED] = True
+
+		if not GERules.IsRoundLocked():
+			self.pltracker[player][TR_ELIMINATED] = False
 
 		if player.IsInitialSpawn():
 			# If we spawned mid-round let them know why they can't play
-			if not self.IsInPlay( player ):
+			if not self.yolt_IsInPlay( player ):
 				GEUtil.PopupMessage( player, "#GES_GPH_CANTJOIN_TITLE", "#GES_GPH_CANTJOIN" )
 
+			# Simple help message
 			GEUtil.PopupMessage( player, "#GES_GP_YOLT_NAME", "#GES_GPH_YOLT_GOAL" )
 
 	def OnRoundBegin( self ):
-		self.radarSet = False;
-		GEMPGameRules.GetRadar().SetForceRadar( False );
+		super( YOLT, self ).OnRoundBegin()
 
-		self.dmBounty = 0
-		self.mi6Bounty = 0
-		self.janusBounty = 0
+		GERules.UnlockRound();
+		GERules.GetRadar().SetForceRadar( False );
 
-		for i in range( 32 ):
-			if not GEPlayer.IsValidPlayerIndex( i ):
-				continue
-			self.pltracker.SetValue( GEPlayer.GetMPPlayer( i ), self.TR_ELIMINATED, False )
-
-		GEMPGameRules.UnlockRound();
-		GEMPGameRules.ResetAllPlayerDeaths();
-		GEMPGameRules.ResetAllPlayersScores();
-
-	def OnRoundEnd( self ):
-		GEMPGameRules.GetRadar().DropAllContacts()
-		GEUtil.RemoveHudProgressBar( None, 0 )
+		self.game_bounty = None
 
 	def OnPlayerKilled( self, victim, killer, weapon ):
+		# Execute default DM scoring behavior
 		GEScenario.OnPlayerKilled( self, victim, killer, weapon )
 
 		if not victim:
 			return
 
-		if not self.waitingForPlayers and victim.GetDeaths() >= 2:
-			GEMPGameRules.LockRound()
-			GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_YOLT_ELIMINATED", victim.GetPlayerName() )
-			GEUtil.EmitGameplayEvent( "yolt_eliminated", "%i" % victim.GetUserID(), "%i" % ( killer.GetUserID() if killer else -1 ) )
+		if not self.game_inWaitTime and victim.GetDeaths() >= 2:
+			# Lock the round (if not done already)
+			GERules.LockRound()
+
+			# Tell everyone who was eliminated
+			GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, "#GES_GP_YOLT_ELIMINATED", victim.GetPlayerName() )
+			# Tell plugins who was eliminated
+			GEUtil.EmitGameplayEvent( "yolt_eliminated", str( victim.GetUserID() ), str( killer.GetUserID() if killer else -1 ) )
+			# Tell the victim they are eliminated
 			GEUtil.PopupMessage( victim, "#GES_GPH_ELIMINATED_TITLE", "#GES_GPH_ELIMINATED" )
 
-			# Officially eliminate the player
-			self.pltracker.SetValue( victim, self.TR_ELIMINATED, True )
-			# Initialize the bounty (if we need to)
-			self.InitializePlayerBounty()
-			# Update the bounty
-			self.UpdatePlayerBounty( victim )
+			# Decrease the bounty, eliminate the victim
+			self.yolt_DecreaseBounty( victim )
 
 	def OnThink( self ):
-		if GEMPGameRules.GetNumActivePlayers() < 2:
-			GEMPGameRules.UnlockRound()
-			self.waitingForPlayers = True
+		# If less than 2 players enter "wait mode"
+		if GERules.GetNumActivePlayers() < 2:
+			if not self.game_inWaitTime:
+				GERules.EndRound()
+
+			self.game_inWaitTime = True
 			return
 
-		if self.waitingForPlayers:
-			self.waitingForPlayers = False
+		# If we get here and we are in "wait mode" than we have enough players to play!
+		if self.game_inWaitTime:
+			self.game_inWaitTime = False
 			GEUtil.HudMessage( None, "#GES_GP_GETREADY", -1, -1, GEUtil.CColor( 255, 255, 255, 255 ), 2.5 )
-			GEMPGameRules.EndRound( False )
-
-		#Check to see if the round is over!
-		if GEMPGameRules.IsTeamplay():
-			#check to see if each team has a player...
-			iMI6Players = []
-			iJanusPlayers = []
-
-			for i in range( 32 ):
-				if not GEPlayer.IsValidPlayerIndex( i ):
-					continue
-
-				player = GEPlayer.GetMPPlayer( i )
-				if self.IsInPlay( player ):
-					if player.GetTeamNumber() == GEGlobal.TEAM_MI6:
-						iMI6Players.append( player )
-					elif player.GetTeamNumber() == GEGlobal.TEAM_JANUS:
-						iJanusPlayers.append( player )
-
-			numMI6Players = len( iMI6Players )
-			numJanusPlayers = len( iJanusPlayers )
-
-			if numMI6Players == 0 and numJanusPlayers == 0:
-				GEMPGameRules.EndRound()
-
-			elif numMI6Players == 0 and numJanusPlayers > 0:
-				janus = GEMPGameRules.GetTeam( GEGlobal.TEAM_JANUS )
-				janus.IncrementMatchScore( 5 )
-				GEMPGameRules.SetTeamWinner( janus )
-				GEMPGameRules.EndRound()
-
-			elif numMI6Players > 0 and numJanusPlayers == 0:
-				mi6 = GEMPGameRules.GetTeam( GEGlobal.TEAM_MI6 )
-				mi6.IncrementMatchScore( 5 )
-				GEMPGameRules.SetTeamWinner( mi6 )
-				GEMPGameRules.EndRound()
-
-			elif not self.radarSet and numMI6Players == 1 and numJanusPlayers == 1:
-				#Add the two players as always visible on the radar
-				radar = GEMPGameRules.GetRadar()
-				radar.SetForceRadar( True )
-				radar.AddRadarContact( iMI6Players[0], GEGlobal.RADAR_TYPE_PLAYER, True )
-				radar.AddRadarContact( iJanusPlayers[0], GEGlobal.RADAR_TYPE_PLAYER, True )
-				self.radarSet = True
-		else:
-			#Check to see if more than one player is around
-			iPlayers = []
-
-			for i in range( 32 ):
-				if not GEPlayer.IsValidPlayerIndex( i ):
-					continue
-
-				player = GEPlayer.GetMPPlayer( i )
-				if self.IsInPlay( player ):
-					iPlayers.append( player )
-
-			numPlayers = len( iPlayers )
-
-			if numPlayers == 0:
-				#This shouldn't happen, but just in case it does we don't want to overflow the vector...
-				GEMPGameRules.EndRound()
-			if numPlayers == 1:
-				GEMPGameRules.SetPlayerWinner( iPlayers[0] )
-				GEMPGameRules.EndRound()
-			elif not self.radarSet and numPlayers == 2:
-				#Add the two players as always visible on the radar
-				radar = GEMPGameRules.GetRadar()
-				radar.SetForceRadar( True )
-				radar.AddRadarContact( iPlayers[0], GEGlobal.RADAR_TYPE_PLAYER, True )
-				radar.AddRadarContact( iPlayers[1], GEGlobal.RADAR_TYPE_PLAYER, True )
-				self.radarSet = True
+			GERules.EndRound( False )
 
 	def CanPlayerRespawn( self, player ):
-		if self.pltracker.GetValue( player, self.TR_ELIMINATED ) and GEMPGameRules.IsRoundLocked():
-			player.SetScoreBoardColor( GEGlobal.SB_COLOR_ELIMINATED )
+		if GERules.IsRoundLocked() and self.pltracker[player][TR_ELIMINATED]:
+			player.SetScoreBoardColor( Glb.SB_COLOR_ELIMINATED )
 			return False
 
-		player.SetScoreBoardColor( GEGlobal.SB_COLOR_NORMAL )
+		player.SetScoreBoardColor( Glb.SB_COLOR_NORMAL )
 		return True
 
-	def InitializePlayerBounty( self ):
-		if GEMPGameRules.IsTeamplay() and self.mi6Bounty == 0 and self.janusBounty == 0:
-			self.mi6Bounty = GEMPGameRules.GetNumInRoundTeamPlayers( GEGlobal.TEAM_MI6 )
-			self.janusBounty = GEMPGameRules.GetNumInRoundTeamPlayers( GEGlobal.TEAM_JANUS )
+	def yolt_InitBounty( self ):
+		if self.game_bounty:
+			# We are already init'd
+			return
 
-			GEUtil.InitHudProgressBar( GEGlobal.TEAM_MI6, 0, "Foes: ", GEGlobal.HUDPB_SHOWVALUE, self.janusBounty, -1, 0.02, 0, 10, GEUtil.CColor( 206, 43, 43, 255 ) )
-			GEUtil.InitHudProgressBar( GEGlobal.TEAM_JANUS, 0, "Foes: ", GEGlobal.HUDPB_SHOWVALUE, self.mi6Bounty, -1, 0.02, 0, 10, GEUtil.CColor( 100, 184, 234, 220 ) )
+		if GERules.IsTeamplay():
+			mi6_count = GERules.GetNumInRoundTeamPlayers( Glb.TEAM_MI6 )
+			janus_count = GERules.GetNumInRoundTeamPlayers( Glb.TEAM_JANUS )
+			# Team bounty is a list: [mi6, janus]
+			self.game_bounty = [ mi6_count, janus_count ]
 
-		elif not GEMPGameRules.IsTeamplay() and self.dmBounty == 0:
-			self.dmBounty = GEMPGameRules.GetNumInRoundPlayers() - 1
-			GEUtil.InitHudProgressBar( None, 0, "Foes: ", GEGlobal.HUDPB_SHOWVALUE, self.dmBounty, -1, 0.02, 0, 10, GEUtil.CColor( 170, 170, 170, 220 ) )
-
-	def UpdatePlayerBounty( self, victim ):
-		if GEMPGameRules.IsTeamplay():
-			if victim.GetTeamNumber() == GEGlobal.TEAM_JANUS:
-				self.janusBounty -= 1
-			else:
-				self.mi6Bounty -= 1
-
-			GEUtil.UpdateHudProgressBar( GEGlobal.TEAM_MI6, 0, self.janusBounty )
-			GEUtil.UpdateHudProgressBar( GEGlobal.TEAM_JANUS, 0, self.mi6Bounty )
+			# Display the bounty progress bars
+			GEUtil.InitHudProgressBar( Glb.TEAM_MI6, 0, "Foes: ", Glb.HUDPB_SHOWVALUE, janus_count, -1, 0.02, 0, 10, GEUtil.CColor( 206, 43, 43, 255 ) )
+			GEUtil.InitHudProgressBar( Glb.TEAM_JANUS, 0, "Foes: ", Glb.HUDPB_SHOWVALUE, mi6_count, -1, 0.02, 0, 10, GEUtil.CColor( 100, 184, 234, 220 ) )
 		else:
-			self.dmBounty -= 1
+			# DM bounty is just a number
+			self.game_bounty = GERules.GetNumInRoundPlayers()
+			# We subtract 1 here to account for the local player (prevents "1 / X" at win)
+			GEUtil.InitHudProgressBar( None, 0, "Foes: ", Glb.HUDPB_SHOWVALUE, self.game_bounty - 1, -1, 0.02, 0, 10, GEUtil.CColor( 170, 170, 170, 220 ) )
 
-			# Remember, we take 1 off to account for the local player
-			GEUtil.UpdateHudProgressBar( None, 0, self.dmBounty )
+	def yolt_DecreaseBounty( self, victim ):
+		# Init the bounty if needed
+		if not self.game_bounty:
+			self.yolt_InitBounty()
 
-	def IsInPlay( self, player ):
-		return player.GetTeamNumber() != GEGlobal.TEAM_SPECTATOR and self.pltracker.GetValue( player, self.TR_SPAWNED ) and not self.pltracker.GetValue( player, self.TR_ELIMINATED )
+		# Mark the victim as eliminated
+		self.pltracker[victim][TR_ELIMINATED] = True
+
+		if GERules.IsTeamplay():
+			# Team bounty is ( mi6, janus )
+			if victim.GetTeamNumber() == Glb.TEAM_MI6:
+				self.game_bounty[0] -= 1
+			else:
+				self.game_bounty[1] -= 1
+
+			GEUtil.UpdateHudProgressBar( Glb.TEAM_MI6, 0, self.game_bounty[1] )
+			GEUtil.UpdateHudProgressBar( Glb.TEAM_JANUS, 0, self.game_bounty[0] )
+		else:
+			# DM bounty is just a number
+			self.game_bounty -= 1
+			# We subtract 1 here to account for the local player (prevents "1 / X" at win)
+			GEUtil.UpdateHudProgressBar( None, 0, self.game_bounty - 1 )
+
+		# Check if we have a winner
+		self.yolt_CheckWin()
+
+	def yolt_CheckWin( self ):
+		if not self.game_bounty:
+			return
+
+		if GERules.IsTeamplay():
+			# Default no winner
+			winner = None
+			if self.game_bounty[0] <= 0:
+				# MI6 has no bounty, Janus won
+				winner = GERules.GetTeam( Glb.TEAM_JANUS )
+			elif self.game_bounty[1] <= 0:
+				# Janus has no bounty, MI6 won
+				winner = GERules.GetTeam( Glb.TEAM_MI6 )
+			elif self.game_bounty[0] == 1 and self.game_bounty[1] == 1:
+				# When we are down to 1 player on each team, force show the radar
+				GERules.GetRadar().SetForceRadar( True )
+
+			if winner:
+				winner.AddMatchScore( 5 )
+				GERules.SetTeamWinner( winner )
+				GERules.EndRound()
+		else:
+			# DM uses a number
+			if self.game_bounty <= 1:
+				# There is only 1 player left, find who that is
+				for player in GetPlayers():
+					if self.yolt_IsInPlay( player ):
+						GERules.SetPlayerWinner( player )
+						break
+				# Round is over
+				GERules.EndRound()
+			elif self.game_bounty == 2:
+				GERules.GetRadar().SetForceRadar( True )
+
+
+	def yolt_IsInPlay( self, player ):
+		return player.GetTeamNumber() != Glb.TEAM_SPECTATOR 	\
+				and self.pltracker[player][TR_SPAWNED] 	\
+				and not self.pltracker[player][TR_ELIMINATED]

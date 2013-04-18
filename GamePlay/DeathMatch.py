@@ -1,7 +1,25 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from GamePlay import GEScenario
-import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
+import GEPlayer, GEUtil, GEMPGameRules as GERules, GEGlobal as Glb
 
-USING_API = GEGlobal.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 
 class DeathMatch( GEScenario ):
 	def GetPrintName( self ):
@@ -11,31 +29,31 @@ class DeathMatch( GEScenario ):
 		help_obj.SetDescription( "#GES_GP_DEATHMATCH_HELP" )
 
 	def GetGameDescription( self ):
-		if GEMPGameRules.IsTeamplay():
+		if GERules.IsTeamplay():
 			return "Team Deathmatch"
 		else:
 			return "Deathmatch"
 
 	def GetTeamPlay( self ):
-		return GEGlobal.TEAMPLAY_TOGGLE
+		return Glb.TEAMPLAY_TOGGLE
 
 	def OnLoadGamePlay( self ):
-		GEMPGameRules.SetAllowTeamSpawns( False )
+		GERules.SetAllowTeamSpawns( False )
 		self.CreateCVar( "dm_fraglimit", "0", "Enable frag limit for DeathMatch." )
 
 	def OnThink( self ):
 		fragLimit = int( GEUtil.GetCVarValue( "dm_fraglimit" ) )
 		if fragLimit != 0:
-			if GEMPGameRules.IsTeamplay():
+			if GERules.IsTeamplay():
 
-				teamJ = GEMPGameRules.GetTeam( GEGlobal.TEAM_JANUS );
-				teamM = GEMPGameRules.GetTeam( GEGlobal.TEAM_MI6 );
+				teamJ = GERules.GetTeam( Glb.TEAM_JANUS );
+				teamM = GERules.GetTeam( Glb.TEAM_MI6 );
 
 				jScore = teamJ.GetRoundScore() + teamJ.GetMatchScore()
 				mScore = teamM.GetRoundScore() + teamM.GetMatchScore()
 
 				if jScore >= fragLimit or mScore >= fragLimit:
-					GEMPGameRules.EndMatch()
+					GERules.EndMatch()
 			else:
 				for i in range( 32 ):
 
@@ -45,4 +63,4 @@ class DeathMatch( GEScenario ):
 					player = GEPlayer.GetMPPlayer( i )
 
 					if  ( player.GetMatchScore() + player.GetScore() ) >= fragLimit:
-						GEMPGameRules.EndMatch()
+						GERules.EndMatch()

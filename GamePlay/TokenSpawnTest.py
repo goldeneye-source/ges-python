@@ -1,11 +1,29 @@
+################ Copyright 2005-2013 Team GoldenEye: Source #################
+#
+# This file is part of GoldenEye: Source's Python Library.
+#
+# GoldenEye: Source's Python Library is free software: you can redistribute 
+# it and/or modify it under the terms of the GNU General Public License as 
+# published by the Free Software Foundation, either version 3 of the License, 
+# or(at your option) any later version.
+#
+# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with GoldenEye: Source's Python Library.
+# If not, see <http://www.gnu.org/licenses/>.
+#############################################################################
 from GamePlay import GEScenario, GEScenarioHelp
-from Utils import GetPlayers, OppositeTeam
+from Utils import GetPlayers
 from Utils.GEPlayerTracker import GEPlayerTracker
 from GEUtil import Color, TraceOpt
-import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal as Glb
+import GEPlayer, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 import random
 
-USING_API = Glb.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 
 class TokenSpawnTest( GEScenario ):
 	MAX_TOKENS = 5
@@ -47,7 +65,7 @@ class TokenSpawnTest( GEScenario ):
 		return Glb.TEAMPLAY_TOGGLE
 
 	def OnLoadGamePlay( self ):
-		tokenmgr = GEMPGameRules.GetTokenMgr()
+		tokenmgr = GERules.GetTokenMgr()
 
 		tokenmgr.SetupToken( self.TOKEN1, location=Glb.SPAWN_TOKEN, limit=self.token_count,
 							glow_color=Color( 0, 255, 0, 120 ), respawn_delay=10 )
@@ -72,12 +90,12 @@ class TokenSpawnTest( GEScenario ):
 		self.token_count = 0
 		self.token_next_time = 0
 
-		GEMPGameRules.ResetAllPlayersScores()
+		GERules.ResetAllPlayersScores()
 
 		self.InitProBar()
 
 	def OnRoundEnd( self ):
-		GEMPGameRules.GetRadar().DropAllContacts()
+		GERules.GetRadar().DropAllContacts()
 
 	def OnPlayerSay( self, player, text ):
 		assert isinstance( text, str )
@@ -105,17 +123,17 @@ class TokenSpawnTest( GEScenario ):
 			else:
 				GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, "^mMatch ending disabled" )
 		elif text == "!doendround":
-			GEMPGameRules.EndRound( True )
+			GERules.EndRound( True )
 		elif text == "!doendmatch":
-			GEMPGameRules.EndMatch()
+			GERules.EndMatch()
 		elif text == "!message":
 			GEUtil.PopupMessage( None, "Test Message 1", "This is a test of the popup message system!", None )
 			GEUtil.PopupMessage( None, "Test Message 2", "This is a test of the popup message system!", "mwgg_goal" )
 			GEUtil.PopupMessage( None, "Test Message 3", "#GES_GPH_ELIMINATED" )
 		elif text == "!droptoken":
 			weap = player.GetActiveWeapon()
-			if weap and GEMPGameRules.GetTokenMgr().IsValidToken( weap.GetClassname() ):
-				GEMPGameRules.GetTokenMgr().TransferToken( weap, None )
+			if weap and GERules.GetTokenMgr().IsValidToken( weap.GetClassname() ):
+				GERules.GetTokenMgr().TransferToken( weap, None )
 		elif text == "!te":
 			GEUtil.CreateTempEnt( "ring", origin=player.GetAbsOrigin(), radius_start=110, radius_end=130,
 								width=3, color=Color( 255, 0, 0, 120 ), framerate=10, amplitude=0.2 )
@@ -161,21 +179,21 @@ class TokenSpawnTest( GEScenario ):
 		self.InitProBar()
 
 	def OnPlayerKilled( self, victim, killer, weapon ):
-		#what exactly got killed?
+		# what exactly got killed?
 		if not victim:
 			return
 
-		#death by world
+		# death by world
 		if not killer:
 			victim.IncrementScore( -1 )
 			return
 
 		if victim.GetIndex() == killer.GetIndex():
 			killer.IncrementScore( -1 )
-		elif GEMPGameRules.IsTeamplay() and killer.GetTeamNumber() == victim.GetTeamNumber():
+		elif GERules.IsTeamplay() and killer.GetTeamNumber() == victim.GetTeamNumber():
 			killer.IncrementScore( -1 )
 		else:
-			GEMPGameRules.GetTeam( killer.GetTeamNumber() ).IncrementRoundScore( 1 )
+			GERules.GetTeam( killer.GetTeamNumber() ).IncrementRoundScore( 1 )
 			killer.IncrementScore( 1 )
 
 	def OnThink( self ):
@@ -185,8 +203,8 @@ class TokenSpawnTest( GEScenario ):
 			elif not self.token_do_increase and self.token_count > 0:
 				self.token_count = self.token_count - 1
 
-			GEMPGameRules.GetTokenMgr().SetupToken( self.TOKEN1, limit=self.token_count )
-			GEMPGameRules.GetTokenMgr().SetupCaptureArea( "cap1", limit=self.token_count )
+			GERules.GetTokenMgr().SetupToken( self.TOKEN1, limit=self.token_count )
+			GERules.GetTokenMgr().SetupCaptureArea( "cap1", limit=self.token_count )
 
 			if self.token_do_increase and self.token_count == self.MAX_TOKENS:
 				self.token_do_increase = False
@@ -202,14 +220,14 @@ class TokenSpawnTest( GEScenario ):
 	# CAPTURE AREA FUNCTIONS #
 	# ---------------------- #
 	def OnCaptureAreaSpawned( self, capture ):
-		GEMPGameRules.GetRadar().AddRadarContact( capture, Glb.RADAR_TYPE_OBJECTIVE, True, "sprites/hud/radar/capture_point", Color( 255, 255, 255, 255 ) )
+		GERules.GetRadar().AddRadarContact( capture, Glb.RADAR_TYPE_OBJECTIVE, True, "sprites/hud/radar/capture_point", Color( 255, 255, 255, 255 ) )
 
 	def OnCaptureAreaRemoved( self, area ):
-		GEMPGameRules.GetRadar().DropRadarContact( area )
+		GERules.GetRadar().DropRadarContact( area )
 
 	def OnCaptureAreaEntered( self, area, player, token ):
-		GEMPGameRules.GetTokenMgr().CaptureToken( token )
-		print "Entered capture area "+ area.GetGroupName() + "!"
+		GERules.GetTokenMgr().CaptureToken( token )
+		print "Entered capture area " + area.GetGroupName() + "!"
 
 	# --------------- #
 	# TOKEN FUNCTIONS #
@@ -218,16 +236,16 @@ class TokenSpawnTest( GEScenario ):
 		assert isinstance( token, GEWeapon.CGEWeapon )
 
 		if token.GetClassname() == self.TOKEN1:
-			GEMPGameRules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 255, 255, 100 ) )
+			GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 255, 255, 100 ) )
 		else:
-			GEMPGameRules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 0, 0, 100 ) )
-			GEMPGameRules.GetRadar().SetupObjective( token, Glb.TEAM_NONE, "", "", Color( 255, 0, 0, 120 ) )
+			GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 0, 0, 100 ) )
+			GERules.GetRadar().SetupObjective( token, Glb.TEAM_NONE, "", "", Color( 255, 0, 0, 120 ) )
 
 	def OnTokenRemoved( self, token ):
-		GEMPGameRules.GetRadar().DropRadarContact( token )
+		GERules.GetRadar().DropRadarContact( token )
 
 	def OnTokenPicked( self, token, player ):
-		GEMPGameRules.GetRadar().DropRadarContact( token )
+		GERules.GetRadar().DropRadarContact( token )
 
 		if token.GetClassname() == self.TOKEN2:
 			GEUtil.HudMessage( None, "Custom Token Picked!", -1, 0.7, Color( 255, 255, 255, 255 ), 1.0, 3 )
@@ -237,9 +255,9 @@ class TokenSpawnTest( GEScenario ):
 			GEUtil.HudMessage( None, "Custom Token Dropped!", -1, 0.75, Color( 255, 255, 255, 255 ), 1.0, 2 )
 
 		if token.GetClassname() == self.TOKEN1:
-			GEMPGameRules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 255, 255, 100 ) )
+			GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 255, 255, 100 ) )
 		else:
-			GEMPGameRules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 0, 0, 100 ) )
+			GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 0, 0, 100 ) )
 
 	def OnTokenAttack( self, token, player, start, direction ):
 		if token.GetClassname() == self.TOKEN1:
@@ -250,12 +268,12 @@ class TokenSpawnTest( GEScenario ):
 
 		if hit is not None:
 			GEUtil.HudMessage( None, "Hit Player!", -1, 0.6, Color( 255, 255, 255, 255 ), 1.0, 1 )
-			GEMPGameRules.GetTokenMgr().TransferToken( token, hit )
+			GERules.GetTokenMgr().TransferToken( token, hit )
 			hit.WeaponSwitch( self.TOKEN2 )
 			return
-			
+
 		hit = GEUtil.Trace( start, end, TraceOpt.CAPAREA, player )
-		
+
 		if hit is not None:
 			GEUtil.HudMessage( None, "Hit Cap Area!", -1, 0.6, Color( 255, 255, 255, 255 ), 1.0, 1 )
 
@@ -264,11 +282,11 @@ class TokenSpawnTest( GEScenario ):
 	# CUSTOM FUNCTIONS #
 	# ---------------- #
 	def InitProBar( self ):
-		#opts = Glb.HUDPB_SHOWVALUE #| Glb.HUDPB_SHOWBAR
-		#h = 15
-		#w = 200
-		#x = -1
-		#y = 0.05
+		# opts = Glb.HUDPB_SHOWVALUE #| Glb.HUDPB_SHOWBAR
+		# h = 15
+		# w = 200
+		# x = -1
+		# y = 0.05
 		opts = Glb.HUDPB_SHOWVALUE | Glb.HUDPB_VERTICAL | Glb.HUDPB_SHOWBAR
 		h = 80
 		w = 12
