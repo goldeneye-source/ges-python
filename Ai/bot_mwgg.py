@@ -16,16 +16,13 @@
 # along with GoldenEye: Source's Python Library.
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
-from Ai import AiSystems
 from GEAiConst import State
-from Ai.bot_deathmatch import bot_deathmatch
-from Ai.Utils import Weapons
-from Schedules import Sched, Cond
-from Tasks import Task
-import GEEntity, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
+from .bot_deathmatch import bot_deathmatch
+from .Schedules import BaseCondition, Sched, Cond
+from .Tasks import Task
 import random
 
-USING_API = Glb.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 
 class bot_mwgg( bot_deathmatch ):
 	def __init__( self, parent ):
@@ -58,5 +55,5 @@ class bot_mwgg( bot_deathmatch ):
 
 # Schedule and condition declarations
 class MWGG_Cond( Cond ):
-	MWGG_HAS_GG = None
+	MWGG_HAS_GG = BaseCondition()
 

@@ -20,6 +20,16 @@ from GEAi import ActivityId
 from . import BaseSchedule, Cond
 from ..Tasks import Task
 
+class EstablishLOFFallback( BaseSchedule ):
+	def Build( self ):
+		self.AddTask( Task.SET_ROUTE_SEARCH_TIME, 2 )
+		self.AddTask( Task.GET_CHASE_PATH_TO_ENEMY )
+		self.AddTask( Task.RUN_PATH_TIMED, 2 )
+		self.AddTask( Task.WAIT_FOR_MOVEMENT )
+
+		self.AddInterrupt( Cond.CAN_RANGE_ATTACK1 )
+		self.AddInterrupt( Cond.CAN_MELEE_ATTACK1 )
+
 class CombatFaceOverride( BaseSchedule ):
 	def Build( self ):
 		from . import Sched
@@ -33,16 +43,6 @@ class CombatFaceOverride( BaseSchedule ):
 		self.AddInterrupt( Cond.CAN_MELEE_ATTACK1 )
 		self.AddInterrupt( Cond.NEW_ENEMY )
 		self.AddInterrupt( Cond.ENEMY_DEAD )
-
-class EstablishLOFFallback( BaseSchedule ):
-	def Build( self ):
-		self.AddTask( Task.SET_ROUTE_SEARCH_TIME, 2 )
-		self.AddTask( Task.GET_CHASE_PATH_TO_ENEMY )
-		self.AddTask( Task.RUN_PATH_TIMED, 2 )
-		self.AddTask( Task.WAIT_FOR_MOVEMENT )
-
-		self.AddInterrupt( Cond.CAN_RANGE_ATTACK1 )
-		self.AddInterrupt( Cond.CAN_MELEE_ATTACK1 )
 
 class BotSeekEnemy( BaseSchedule ):
 	def Build( self ):
