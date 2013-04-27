@@ -16,13 +16,10 @@
 # along with GoldenEye: Source's Python Library.
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
-from Ai import AiSystems
-from Ai.bot_deathmatch import bot_deathmatch
-from Ai.Utils import Weapons
-from Schedules import Sched, Cond
-import GEEntity, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
+from .bot_deathmatch import bot_deathmatch
+from Schedules import Cond
 
-USING_API = Glb.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 
 class bot_ltk( bot_deathmatch ):
 	def GatherConditions( self ):

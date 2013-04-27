@@ -16,11 +16,11 @@
 # along with GoldenEye: Source's Python Library.
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
-from Ai.bot_deathmatch import bot_deathmatch
+from .bot_deathmatch import bot_deathmatch
 from Schedules import Cond
 import GEGlobal as Glb
 
-USING_API = Glb.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 
 class bot_drnoarmor( bot_deathmatch ):
 	def GatherConditions( self ):

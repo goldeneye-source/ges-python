@@ -20,7 +20,7 @@ from Ai.bot_deathmatch import bot_deathmatch
 from Schedules import Cond
 import GEGlobal as Glb
 
-USING_API = Glb.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 
 class bot_gungame( bot_deathmatch ):
 	def GatherConditions( self ):

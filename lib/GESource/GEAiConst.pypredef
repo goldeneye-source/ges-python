@@ -36,8 +36,6 @@ class State:
 	IDLE = int
 	ALERT = int
 	COMBAT = int
-	SCRIPT = int
-	PLAYDEAD = int
 	DEAD = int
 
 class Level:

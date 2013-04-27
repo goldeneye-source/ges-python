@@ -45,6 +45,9 @@ class KMTest( DeathMatch ):
 	def OnPlayerSpawn( self, player ):
 		GERules.GetRadar().SetupObjective( player, 0, "", player.GetCleanPlayerName(), Color( 120, 120, 0, 255 ), 0, True )
 
+	def OnRoundEnd( self ):
+		GERules.EndMatch()
+
 	def OnPlayerSay( self, player, cmd ):
 		assert isinstance( player, GEPlayer.CGEMPPlayer )
 

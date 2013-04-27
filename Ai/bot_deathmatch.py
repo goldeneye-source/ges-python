@@ -17,13 +17,13 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 from Ai import PYBaseNPC, AiSystems
-from Ai.Utils import Memory, Weapons
+from .Utils import Memory, Weapons
+from .Schedules import Sched, Cond
 from GEAiConst import Class, State, Capability as Cap, Disposition as D
-from Schedules import Sched, Cond
 import GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 import random
 
-USING_API = Glb.API_VERSION_1_0_0
+USING_API = Glb.API_VERSION_1_1_0
 
 class bot_deathmatch( PYBaseNPC ):
 	def __init__( self, parent ):
