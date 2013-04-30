@@ -41,3 +41,5 @@ gphashes.txt
 .pydevproject
 .project
 pullhashes.py
+GamePlay/LaunchCode.py
+GamePlay/Uplink.py
