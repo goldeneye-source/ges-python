@@ -232,6 +232,9 @@ class YOLT( GEScenario ):
 
 
 	def yolt_IsInPlay( self, player ):
-		return player.GetTeamNumber() != Glb.TEAM_SPECTATOR 	\
-				and self.pltracker[player][TR_SPAWNED] 	\
-				and not self.pltracker[player][TR_ELIMINATED]
+		try:
+			return player.GetTeamNumber() != Glb.TEAM_SPECTATOR 	\
+					and self.pltracker[player][TR_SPAWNED] 	\
+					and not self.pltracker[player][TR_ELIMINATED]
+		except KeyError:
+			pass
