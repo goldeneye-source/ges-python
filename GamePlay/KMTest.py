@@ -79,8 +79,8 @@ class KMTest( DeathMatch ):
 				GEUtil.HudMessage( None, "No hit!", -1, -1 )
 			else:
 				player = GEPlayer.ToMPPlayer( hit )
-				GEUtil.HudMessage( None, "Hit: " + hit.GetClassname(), -1, -1 )
-				GEUtil.HudMessage( None, "Player: " + player.GetPlayerName(), -1, 0.6 )
+				GEUtil.HudMessage( None, "Hit: " + hit.GetClassname(), -1, -1, hold_time=10.0, color=Color(255,255,0,255) )
+				GEUtil.HudMessage( None, "Player: " + player.GetPlayerName(), y=0.6, x=-1 )
 		elif cmd == "obj":
 			self.obj_blink = not self.obj_blink
 			for pl in GetPlayers():
