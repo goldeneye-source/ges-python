@@ -34,7 +34,7 @@ def ClientPrint( player_or_team, dest, msg, param1=None, param2=None, param3=Non
 	@type param4: str
 	'''
 
-def HudMessage( player_or_team, msg, x, y, color=GEUtil.Color( 255, 255, 255, 255 ), holdtime=5.0, channel= -1 ):
+def HudMessage( player_or_team, msg, x, y, color=GEUtil.Color( 255, 255, 255, 255 ), hold_time=5.0, channel=-1 ):
 	'''
 	Post a message on the HUD using the specified styling
 	Set player_or_team to None to print to all players
@@ -234,29 +234,33 @@ def AddDownloadable( file ):
 	@type file: str
 	'''
 
-def PlaySoundTo( dest, soundname, dim_music=False ):
+def PlaySoundTo( dest, sound, dim_music=False ):
 	'''
 	Play a sound to the given destination. This can be a player, team number,
 	or None which will play it to everyone. Set dim_music to True to dim the
 	background music when this sound plays (default is False).
 	
+	sound can be a file path or a defined sound name.
+	
 	This sound is not attenuated in any way and is played such that only the 
 	provided players can hear it.
 	
 	@type dest: GEPlayer.CGEPlayer or int or None
-	@type soundname: str
+	@type sound: str
 	@type dim_music: bool
 	'''
 
-def PlaySoundFrom( origin, soundname, attenuation=0.8 ):
+def PlaySoundFrom( origin, sound, attenuation=0.8 ):
 	'''
 	Play a sound from the given origin. This can be a player or a vector.
 	You can change how much the sound is attenuated by changing 'attenuation'.
 	Closer to zero lets people hear the sound further away.
-	Note: Gunfire has an attenuation of 0.27!
+	Note: Gunfire has an attenuation of 0.27
+	
+	sound can be a file path or a defined sound name.
 	
 	@type dest: GEPlayer.CGEPlayer or GEUtil.Vector
-	@type soundname: str
+	@type sound: str
 	@type attenuation: double (0 -> 3.0)
 	'''
 
@@ -276,7 +280,7 @@ def ParticleEffectBeam( player, attachment, end, effect ):
 	@type effect: str
 	'''
 
-def InitHudProgressBar( player_or_team, index, title, flags, maxValue, x, y, wide, tall, color ):
+def InitHudProgressBar( player_or_team, index, title=None, flags=0, max_value=0, x=-1, y=-1, wide=120, tall=60, color=GEUtil.Color(255,255,255,255) ):
 	'''
 	Initiate a progress bar to show on players' screens. There can be a maximum of 8
 	progress bars for each player. Use index to indicate which bar you are initializing.
@@ -292,7 +296,7 @@ def InitHudProgressBar( player_or_team, index, title, flags, maxValue, x, y, wid
 	@type index: int
 	@type title: str
 	@type flags: int
-	@type maxValue: float
+	@type max_value: float
 	@type x: float
 	@type y: float
 	@type wide: int
@@ -300,9 +304,9 @@ def InitHudProgressBar( player_or_team, index, title, flags, maxValue, x, y, wid
 	@type color: GEUtil.Color
 	'''
 
-def UpdateHudProgressBar( player_or_team, index, value ):
+def UpdateHudProgressBar( player_or_team, index, value=None, title=None, Color=None ):
 	'''
-	Update an existing progress bar with a new value
+	Update an existing progress bar with a new value, title, and/or color
 	
 	Set player_or_team to None to send to all players
 	
@@ -310,19 +314,7 @@ def UpdateHudProgressBar( player_or_team, index, value ):
 	@type index: int
 	@type value: float
 	'''
-
-def ConfigHudProgressBar( player_or_team, index, title, color=GEUtil.Color( 0, 0, 0, 0 ) ):
-	'''
-	Update the title or color of an existing progress bar
 	
-	Set player_or_team to None to send to all players
-	
-	@type player_or_team: GEPlayer.CGEPlayer or Team Number
-	@type index: int
-	@type title: str
-	@type color: GEUtil.Color
-	'''
-
 def RemoveHudProgressBar( player_or_team, index ):
 	'''
 	Remove a progress bar from the designated player's screen
