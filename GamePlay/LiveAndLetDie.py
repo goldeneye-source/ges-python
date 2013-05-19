@@ -2,14 +2,14 @@
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
-# GoldenEye: Source's Python Library is free software: you can redistribute 
-# it and/or modify it under the terms of the GNU General Public License as 
-# published by the Free Software Foundation, either version 3 of the License, 
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
 # or(at your option) any later version.
 #
-# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# GoldenEye: Source's Python Library is distributed in the hope that it will
 # be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
 # Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -19,12 +19,13 @@
 from . import GEScenario
 from Utils import choice, clamp, plural, GetPlayers
 from Utils.GEPlayerTracker import GEPlayerTracker
+from GEUtil import Color
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
 import random
 import GEGamePlay
 
 USING_API = GEGlobal.API_VERSION_1_1_0
-EP_SHOUT_COLOR = GEUtil.CColor( 240, 200, 120, 170 )
+EP_SHOUT_COLOR = Color( 240, 200, 120, 170 )
 LLD_DEBUG = False
 
 def ep_forcerespawn():
@@ -588,7 +589,7 @@ class LiveAndLetDie( GEScenario ):
 					GEUtil.InitHudProgressBar( Baron, 1, self.CAPTION_EXHAUSTED, GEGlobal.HUDPB_SHOWBAR, 1, -1, .72, 0, 0, self.BARON_PROGRESS_EXHAUSTED )
 					GEUtil.InitHudProgressBar( Baron, 0, "", GEGlobal.HUDPB_SHOWBAR, width, -1, .76, HUD_WIDTH, 10, self.BARON_PROGRESS_EXHAUSTED )
 					inflate = 0
-				GEUtil.UpdateHudProgressBar( Baron, 0, self.baron_voodoo + inflate )
+				GEUtil.UpdateHudProgressBar( Baron, 0, float( self.baron_voodoo + inflate ) )
 			else:
 				if self.baron_voodoo_recharge >= self.BARON_VOODOO_RECHARGE - 1:
 					GEUtil.InitHudProgressBar( Baron, 1, choice( self.baron_voodoo > 0, self.CAPTION_REFRACTORY, self.CAPTION_EXHAUSTED ), GEGlobal.HUDPB_SHOWBAR, 1, -1, .72, 0, 0, self.BARON_PROGRESS_EXHAUSTED )
@@ -667,9 +668,9 @@ class LiveAndLetDie( GEScenario ):
 		self.BARON_COSTUME_BARON = "samedi"
 		self.BARON_HANDICAP_RATE = 0.5
 		self.BARON_LEVEL_MAX = 35
-		self.BARON_PROGRESS_FULL = GEUtil.CColor( 180, 225, 255, 170 )
-		self.BARON_PROGRESS_NORMAL = GEUtil.CColor( 240, 200, 120, 170 )
-		self.BARON_PROGRESS_EXHAUSTED = GEUtil.CColor( 240, 120, 120, 170 )
+		self.BARON_PROGRESS_FULL = Color( 180, 225, 255, 170 )
+		self.BARON_PROGRESS_NORMAL = Color( 240, 200, 120, 170 )
+		self.BARON_PROGRESS_EXHAUSTED = Color( 240, 120, 120, 170 )
 		self.BARON_SPAWN_AMMO = 86
 		self.BARON_SPAWN_ARMOR = int( GEGlobal.GE_MAX_ARMOR * 5 / 8 )
 		self.BARON_SPAWN_RECOVER = int( GEGlobal.GE_MAX_HEALTH / 4 )
@@ -693,10 +694,10 @@ class LiveAndLetDie( GEScenario ):
 		self.baron_costume_cache_skin = 0
 
 	def lld_declare_scenario_data( self ):
-		self.AURA_AUG = GEUtil.CColor( 244, 192, 11, 64 )
+		self.AURA_AUG = Color( 244, 192, 11, 64 )
 		self.RADAR_AUG_ICON = "ge_radar_gg"
 		self.RADAR_BARON_ICON = "sprites/hud/radar/baron"
-		self.RADAR_SCARAMANGA = GEUtil.CColor( 232, 180, 2, 255 )
+		self.RADAR_SCARAMANGA = Color( 232, 180, 2, 255 )
 		self.TOKEN_AUG_ENTITY = 'weapon_golden_gun'
 		self.RESULT_NONE = 0
 		self.RESULT_BONDWIN = 1
@@ -748,7 +749,7 @@ class LiveAndLetDie( GEScenario ):
 				GEMPGameRules.GetRadar().DropRadarContact( Baron )
 				GEMPGameRules.GetRadar().AddRadarContact( Baron, GEGlobal.RADAR_TYPE_PLAYER, True, self.RADAR_BARON_ICON )
 				# Only the GG Holder can see the baron's objective icon
-				GEMPGameRules.GetRadar().SetupObjective( Baron, GEGlobal.TEAM_NONE, self.TOKEN_AUG_ENTITY, "", GEUtil.CColor( 255, 255, 255, 100 ), 300 )
+				GEMPGameRules.GetRadar().SetupObjective( Baron, GEGlobal.TEAM_NONE, self.TOKEN_AUG_ENTITY, "", Color( 255, 255, 255, 100 ), 300 )
 				self.lld_baron_spawn( Baron )
 				Baron.SetScoreBoardColor( GEGlobal.SB_COLOR_WHITE )
 				# Baron specific help
