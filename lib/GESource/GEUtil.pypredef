@@ -18,15 +18,16 @@
 #############################################################################
 import GEEntity
 
-def ClientPrint( player_or_team, dest, msg, param1=None, param2=None, param3=None, param4=None ):
+def ClientPrint( player_or_team, msg_dest, msg, param1="", param2="", param3="", param4="" ):
 	'''
-	Post a message in the destination specified using GEGlobal.HUD_PRINT*
-	Set 'player_or_team' to None to print to all players
+	Set 'player_or_team' to None to print to all players or provide a specific team or player to send to.
+	Set 'msg_dest' to one of the GEGlobal.HUD_PRINT* to display it in various places.
 	
-	'param1' through 'param4' are used to fill in localization slots in 'msg'
+	'param1' through 'param4' are used to fill in localization slots in 'msg', for example:
+	"#LOCALIZE_THIS" might have 1 "%s1" parameter, set 'param1' to "spam" to fill it in!
 	
 	@type player_or_team: GEPlayer.CGEPlayer or Team Number
-	@type dest: int
+	@type msg_dest: int
 	@type msg: str
 	@type param1: str
 	@type param2: str
@@ -159,7 +160,7 @@ def CreateTempEnt( type, origin=Vector, **kwargs ):
 	@type origin: GEUtil.Vector (required!)
 	'''
 
-def EmitGameplayEvent( name, value1=None, value2=None, value3=None, value4=None, send_to_clients=False ):
+def EmitGameplayEvent( name, value1="", value2="", value3="", value4="", send_to_clients=False ):
 	'''
 	Emit a custom gameplay event with a name and string values. These events can
 	be picked up by server plugins to do special actions in conjunction with your
@@ -304,7 +305,7 @@ def InitHudProgressBar( player_or_team, index, title=None, flags=0, max_value=0,
 	@type color: GEUtil.Color
 	'''
 
-def UpdateHudProgressBar( player_or_team, index, value=None, title=None, Color=None ):
+def UpdateHudProgressBar( player_or_team, index, value=None, title=None, color=None ):
 	'''
 	Update an existing progress bar with a new value, title, and/or color
 	

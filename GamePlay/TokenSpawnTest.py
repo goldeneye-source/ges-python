@@ -2,14 +2,14 @@
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
-# GoldenEye: Source's Python Library is free software: you can redistribute 
-# it and/or modify it under the terms of the GNU General Public License as 
-# published by the Free Software Foundation, either version 3 of the License, 
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
 # or(at your option) any later version.
 #
-# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# GoldenEye: Source's Python Library is distributed in the hope that it will
 # be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
 # Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -127,7 +127,7 @@ class TokenSpawnTest( GEScenario ):
 		elif text == "!doendmatch":
 			GERules.EndMatch()
 		elif text == "!message":
-			GEUtil.PopupMessage( None, "Test Message 1", "This is a test of the popup message system!", None )
+			GEUtil.PopupMessage( None, "Test Message 1", "This is a test of the popup message system!" )
 			GEUtil.PopupMessage( None, "Test Message 2", "This is a test of the popup message system!", "mwgg_goal" )
 			GEUtil.PopupMessage( None, "Test Message 3", "#GES_GPH_ELIMINATED" )
 		elif text == "!droptoken":
@@ -211,8 +211,7 @@ class TokenSpawnTest( GEScenario ):
 			elif not self.token_do_increase and self.token_count <= 0:
 				self.token_do_increase = True
 
-			GEUtil.UpdateHudProgressBar( None, 0, self.token_count )
-			GEUtil.ConfigHudProgressBar( None, 0, "Token #%i" % self.token_count, Color( 255, 0, 0, 255 ) )
+			GEUtil.UpdateHudProgressBar( None, 0, value=self.token_count )
 
 			self.token_next_time = GEUtil.GetTime() + 1.0
 
@@ -239,7 +238,7 @@ class TokenSpawnTest( GEScenario ):
 			GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 255, 255, 100 ) )
 		else:
 			GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 0, 0, 100 ) )
-			GERules.GetRadar().SetupObjective( token, Glb.TEAM_NONE, "", "", Color( 255, 0, 0, 120 ) )
+			GERules.GetRadar().SetupObjective2( token, team_filter=Glb.TEAM_NONE, color=Color( 255, 0, 0, 120 ) )
 
 	def OnTokenRemoved( self, token ):
 		GERules.GetRadar().DropRadarContact( token )
