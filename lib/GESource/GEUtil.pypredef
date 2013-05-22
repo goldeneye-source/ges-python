@@ -264,6 +264,16 @@ def PlaySoundFrom( origin, sound, attenuation=0.8 ):
 	@type sound: str
 	@type attenuation: double (0 -> 3.0)
 	'''
+	
+def StopSound( dest, sound ):
+	'''
+	Stops a previously played sound by name. Simply pass in the same name as
+	previously given and the sound will stop. Provide a player to `dest` to 
+	stop the sound on that player only.
+	
+	@type dest: GEPlayer.CGEPlayer or None
+	@type sound: str
+	'''
 
 def ParticleEffect( player, attachment, effect, follow ):
 	'''

@@ -47,8 +47,8 @@ class EventHooks:
 	AI_SETDIFFICULTY = int
 
 # Standard Say Commands (for use in OnPlayerSay)
-SAY_COMMAND1 = str
-SAY_COMMAND2 = str
+SAY_COMMAND1 = "!voodoo"
+SAY_COMMAND2 = "!gesrocks"
 
 # Teams
 TEAM_NONE = int
