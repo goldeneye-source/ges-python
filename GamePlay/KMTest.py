@@ -2,14 +2,14 @@
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
-# GoldenEye: Source's Python Library is free software: you can redistribute 
-# it and/or modify it under the terms of the GNU General Public License as 
-# published by the Free Software Foundation, either version 3 of the License, 
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
 # or(at your option) any later version.
 #
-# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# GoldenEye: Source's Python Library is distributed in the hope that it will
 # be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
 # Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -39,14 +39,10 @@ class KMTest( DeathMatch ):
 
 	def OnLoadGamePlay( self ):
 		super( KMTest, self ).OnLoadGamePlay()
-		GEUtil.PrecacheSound( "player/ld_chime.wav" )
-		GEUtil.PrecacheSound( "player/lld_voodoo.wav" )
+		GEUtil.PrecacheSound( "GEGamePlay.Baron_Flawless" )
 
 	def OnPlayerSpawn( self, player ):
 		GERules.GetRadar().SetupObjective( player, 0, "", player.GetCleanPlayerName(), Color( 120, 120, 0, 255 ), 0, True )
-
-	def OnRoundEnd( self ):
-		GERules.EndMatch()
 
 	def OnPlayerSay( self, player, cmd ):
 		assert isinstance( player, GEPlayer.CGEMPPlayer )
@@ -79,8 +75,8 @@ class KMTest( DeathMatch ):
 				GEUtil.HudMessage( None, "No hit!", -1, -1 )
 			else:
 				player = GEPlayer.ToMPPlayer( hit )
-				GEUtil.HudMessage( None, "Hit: " + hit.GetClassname(), -1, -1, hold_time=10.0, color=Color(255,255,0,255) )
-				GEUtil.HudMessage( None, "Player: " + player.GetPlayerName(), y=0.6, x=-1 )
+				GEUtil.HudMessage( None, "Hit: " + hit.GetClassname(), -1, -1, hold_time=10.0, color=Color( 255, 255, 0, 255 ) )
+				GEUtil.HudMessage( None, "Player: " + player.GetPlayerName(), y=0.6, x= -1 )
 		elif cmd == "obj":
 			self.obj_blink = not self.obj_blink
 			for pl in GetPlayers():

@@ -17,20 +17,21 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 from . import GEScenario
+from GEUtil import Color
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
 
 USING_API = GEGlobal.API_VERSION_1_1_0
 
 class MWGG( GEScenario ):
-	gg_glow_color = GEUtil.CColor( 232, 180, 2, 64 )
-	gg_owner_color = GEUtil.CColor( 232, 180, 2, 255 )
-	gg_dropped_color = GEUtil.CColor( 232, 180, 2, 100 )
-	gg_held_color = GEUtil.CColor( 232, 180, 2, 230 )
+	gg_glow_color = Color( 232, 180, 2, 64 )
+	gg_owner_color = Color( 232, 180, 2, 255 )
+	gg_dropped_color = Color( 232, 180, 2, 100 )
+	gg_held_color = Color( 232, 180, 2, 230 )
 
 	def __init__( self ):
 		super( MWGG, self ).__init__()
 
-		self.gg_classname = 'weapon_golden_gun'
+		self.gg_classname = "weapon_golden_gun"
 		self.gg_owner = None
 
 	def GetPrintName( self ):
@@ -75,15 +76,15 @@ class MWGG( GEScenario ):
 			# Regular kill
 			if victim == self.gg_owner:
 				GEUtil.EmitGameplayEvent( "mwgg_killed", "%i" % victim.GetUserID(), "%i" % killer.GetUserID() )
-				GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_KILLED", killer.GetPlayerName() )
+				GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_KILLED", killer.GetCleanPlayerName() )
 
 			killer.AddRoundScore( 1 )
 
 	def OnThink( self ):
 		if self.gg_owner:
-			GGPlayer = GEEntity.GetEntByUniqueId( self.gg_owner )
-			if GGPlayer and GGPlayer.GetArmor() > 0:
-				GGPlayer.SetMaxArmor( 0 )
+			gg_player = GEEntity.GetEntByUID( self.gg_owner )
+			if gg_player and gg_player.GetArmor() > 0:
+				gg_player.SetMaxArmor( 0 )
 
 	def OnTokenSpawned( self, token ):
 		GEMPGameRules.GetRadar().AddRadarContact( token, GEGlobal.RADAR_TYPE_TOKEN, True, "ge_radar_gg" )
@@ -96,13 +97,13 @@ class MWGG( GEScenario ):
 		radar.SetupObjective( player, GEGlobal.TEAM_NONE, "", "", self.gg_held_color )
 
 		GEUtil.PlaySoundTo( player, "GEGamePlay.Token_Grab" )
-		GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_PICKED", player.GetPlayerName() )
+		GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_PICKED", player.GetCleanPlayerName() )
 		GEUtil.EmitGameplayEvent( "mwgg_ggpickup", "%i" % player.GetUserID() )
 		GEUtil.HudMessage( player, "#GES_GP_MWGG_HAVEGG", -1, 0.75, self.gg_owner_color, 3.0 )
 
 		radar.SetPlayerRangeMod( player, 0.5 )
 		player.SetScoreBoardColor( GEGlobal.SB_COLOR_GOLD )
-		self.gg_owner = GEEntity.GetUID( player )
+		self.gg_owner = player.GetUID()
 
 	def OnTokenDropped( self, token, player ):
 		radar = GEMPGameRules.GetRadar()
@@ -110,7 +111,7 @@ class MWGG( GEScenario ):
 		radar.AddRadarContact( token, GEGlobal.RADAR_TYPE_TOKEN, True, "ge_radar_gg" )
 		radar.SetupObjective( token, GEGlobal.TEAM_NONE, "", "", self.gg_dropped_color )
 
-		GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_DROPPED", player.GetPlayerName() )
+		GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_DROPPED", player.GetCleanPlayerName() )
 		player.SetScoreBoardColor( GEGlobal.SB_COLOR_NORMAL )
 		self.gg_owner = None
 
