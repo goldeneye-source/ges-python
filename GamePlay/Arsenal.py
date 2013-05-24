@@ -74,7 +74,7 @@ class Arsenal( GEScenario ):
 			self.WaitingForPlayers = False
 
 		# Restore the default weapon list
-		if weaponList != weaponListCopy and int( GEUtil.GetCVarValue( "ar_randomweapons" ) ) == 0:
+		if weaponList != weaponListCopy:
 			weaponList = list( weaponListCopy )
 
 	def OnCVarChanged( self, name, oldvalue, newvalue ):
@@ -323,7 +323,7 @@ class Arsenal( GEScenario ):
 		count = 0
 		arWeapons = ""
 		# Output up to the next 5 weapons for this player, not including the final weapon
-		for i in range( self.GetLevel( player ) + 1, len( weaponList ) - 1 ):
+		for i in range( self.GetLevel( player ) + 1, maxLevel ):
 			count += 1
 			name = GEWeapon.WeaponPrintName( weaponList[i][0] )
 			arWeapons += "Level %i: #%s\n" % ( i + 1, name )
