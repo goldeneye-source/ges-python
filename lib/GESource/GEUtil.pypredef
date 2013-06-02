@@ -291,7 +291,7 @@ def ParticleEffectBeam( player, attachment, end, effect ):
 	@type effect: str
 	'''
 
-def InitHudProgressBar( player_or_team, index, title=None, flags=0, max_value=0, x=-1, y=-1, wide=120, tall=60, color=GEUtil.Color(255,255,255,255) ):
+def InitHudProgressBar( player_or_team, index, title=None, flags=0, max_value=0, x=-1, y=-1, wide=120, tall=60, color=GEUtil.Color(255,255,255,255), curr_value=0 ):
 	'''
 	Initiate a progress bar to show on players' screens. There can be a maximum of 8
 	progress bars for each player. Use index to indicate which bar you are initializing.
@@ -313,6 +313,7 @@ def InitHudProgressBar( player_or_team, index, title=None, flags=0, max_value=0,
 	@type wide: int
 	@type tall: int
 	@type color: GEUtil.Color
+	@type curr_value: float
 	'''
 
 def UpdateHudProgressBar( player_or_team, index, value=None, title=None, color=None ):

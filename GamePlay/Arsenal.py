@@ -19,7 +19,7 @@
 from . import GEScenario
 from Utils.GEWarmUp import GEWarmUp
 from Utils.GEPlayerTracker import GEPlayerTracker
-from Utils import GetPlayers, clamp
+from Utils import GetPlayers, clamp, _
 from random import shuffle
 import GEUtil, GEMPGameRules as GERules, GEGlobal, GEPlayer, GEWeapon
 
@@ -159,7 +159,7 @@ class Arsenal( GEScenario ):
 
 			if self.pltracker[player][TR_ROUND] and self.RoundLimit > 0:
 				if self.RoundNumber < self.RoundLimit:
-					GEUtil.HudMessage( player, "#GES_GP_AR_ROUNDCOUNT\r%i\r%i" % ( self.RoundNumber, self.RoundLimit ), -1, 0.02, GEUtil.Color( 170, 170, 170, 220 ), 3.5 )
+					GEUtil.HudMessage( player, _( "#GES_GP_AR_ROUNDCOUNT", self.RoundNumber, self.RoundLimit ), -1, 0.02, GEUtil.Color( 170, 170, 170, 220 ), 3.5 )
 				else:
 					GEUtil.HudMessage( player, "#GES_GP_AR_FINALROUND", -1, 0.02, GEUtil.Color( 206, 43, 43, 255 ), 3.5 )
 
