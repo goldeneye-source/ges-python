@@ -340,7 +340,8 @@ class Arsenal( GEScenario ):
 			return
 
 		curr_level = self.GetLevel( player )
-		if curr_level == maxLevel:
+		# Players at the max level see this message only
+		if curr_level >= maxLevel:
 			GEUtil.PopupMessage( player, "#GES_GP_ARSENAL_NAME", "You are on the final level!" )
 			return
 
@@ -356,6 +357,7 @@ class Arsenal( GEScenario ):
 				break
 
 		# Tack on the final weapon
-		arWeapons += "\nFinal Level %i: #%s\n" % ( len( weaponList ), GEWeapon.WeaponPrintName( weaponList[-1][0] ) )
+		arWeapons += "\nFinal level %i: #%s\n" % ( len( weaponList ), GEWeapon.WeaponPrintName( weaponList[-1][0] ) )
 
+		# Finally show the message to the requesting player
 		GEUtil.PopupMessage( player, "#GES_GP_ARSENAL_NAME", arWeapons )
