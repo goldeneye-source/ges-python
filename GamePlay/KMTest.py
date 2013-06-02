@@ -40,6 +40,7 @@ class KMTest( DeathMatch ):
 	def OnLoadGamePlay( self ):
 		super( KMTest, self ).OnLoadGamePlay()
 		GEUtil.PrecacheSound( "GEGamePlay.Baron_Flawless" )
+		GEUtil.PrecacheSound( "@custom/nano-blade-loop.wav" )
 
 	def OnPlayerSpawn( self, player ):
 		GERules.GetRadar().SetupObjective( player, 0, "", player.GetCleanPlayerName(), Color( 120, 120, 0, 255 ), 0, True )
@@ -76,7 +77,7 @@ class KMTest( DeathMatch ):
 			else:
 				player = GEPlayer.ToMPPlayer( hit )
 				GEUtil.HudMessage( None, "Hit: " + hit.GetClassname(), -1, -1, hold_time=10.0, color=Color( 255, 255, 0, 255 ) )
-				GEUtil.HudMessage( None, "Player: " + player.GetPlayerName(), y=0.6, x= -1 )
+				GEUtil.HudMessage( None, "Player: " + player.GetPlayerName(), y=0.6, x=-1 )
 		elif cmd == "obj":
 			self.obj_blink = not self.obj_blink
 			for pl in GetPlayers():
@@ -88,6 +89,15 @@ class KMTest( DeathMatch ):
 				"keep typing but I will god damnit! I really don't "
 				"like typing so I am eventually going to stop doing "
 				"it but not anytime soon baby cakes!" )
+		elif cmd == "sound":
+			GEUtil.PlaySoundFrom( player.GetAbsOrigin(), "@custom/nano-blade-loop.wav", 0.27 )
+		elif cmd == Glb.SAY_COMMAND1:
+			if not hasattr( self, "blah" ):
+				self.blah = 1
+			else:
+				self.blah += 1
+
+			GEUtil.HudMessage( None, "Test: " + str( self.blah ), -1, -1, GEUtil.Color( 100, 184, 234 ), 3.0 )
 		else:
 			return False
 

@@ -241,10 +241,18 @@ def PlaySoundTo( dest, sound, dim_music=False ):
 	or None which will play it to everyone. Set dim_music to True to dim the
 	background music when this sound plays (default is False).
 	
-	sound can be a file path or a defined sound name.
+	`sound` can be a file path or a defined sound name.
 	
 	This sound is not attenuated in any way and is played such that only the 
 	provided players can hear it.
+	
+	If using a direct .wav or .mp3, you can use modifiers in front of the sound
+	to change it's behavior. NOTE: These must be present in the precache definition!!
+	Example: PlaySoundTo( "@custom/custom_sound.wav" )
+	
+	@ -> Omni sound, plays the same on all speakers
+	) -> Spatialized stereo sound
+	^ -> Distance encoded sound
 	
 	@type dest: GEPlayer.CGEPlayer or int or None
 	@type sound: str
@@ -258,7 +266,15 @@ def PlaySoundFrom( origin, sound, attenuation=0.8 ):
 	Closer to zero lets people hear the sound further away.
 	Note: Gunfire has an attenuation of 0.27
 	
-	sound can be a file path or a defined sound name.
+	`sound` can be a file path or a defined sound name.
+	
+	If using a direct .wav or .mp3, you can use modifiers in front of the sound
+	to change it's behavior. NOTE: These must be present in the precache definition!!
+	Example: PlaySoundTo( "@custom/custom_sound.wav" )
+	
+	@ -> Omni sound, plays the same on all speakers
+	) -> Spatialized stereo sound
+	^ -> Distance encoded sound
 	
 	@type dest: GEPlayer.CGEPlayer or GEUtil.Vector
 	@type sound: str
@@ -368,8 +384,27 @@ def Trace( start, end, options, ignore_ent=None ) -> GEEntity.CBaseEntity:
 	return GEEntity.CBaseEntity
 
 class Color:
-	def __init__( self, r=0, g=0, b=0, a=0 ):
+	def __init__( self, color ):
 		'''
+		Copy another previously defined color directly
+		
+		@type color: Color
+		'''
+		
+	def __init__( self, raw ):
+		'''
+		Define a color by a raw integer value
+		The bit order is 0x[AA][RR][GG][BB]
+		
+		Example: Color( 0xFF00FFFF ) == Color( 0, 255, 255, 255 ) 
+		
+		@type raw: int
+		'''
+		
+	def __init__( self, r, g, b, a=255 ):
+		'''
+		Define a color by RGBA values
+		
 		@type r: int
 		@type g: int
 		@type b: int
