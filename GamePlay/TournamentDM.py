@@ -17,7 +17,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 from . import GEScenario
-from Utils import clamp, plural
+from Utils import clamp, plural, _
 from Utils.GEWarmUp import GEWarmUp
 import GEUtil, GEMPGameRules as GERules, GEGlobal
 
@@ -99,7 +99,7 @@ class TournamentDM( GEScenario ):
 	def OnPlayerSpawn( self, player ):
 		if player.IsInitialSpawn():
 			if self.FragLimit >= 2:
-				GEUtil.PopupMessage( player, "Tournament DM", "#GES_GP_TDM_GOAL_MANY\r%i" % self.FragLimit )
+				GEUtil.PopupMessage( player, "Tournament DM", _( "#GES_GP_TDM_GOAL_MANY", self.FragLimit ) )
 			elif self.FragLimit == 1:
 				GEUtil.PopupMessage( player, "Tournament DM", "#GES_GP_TDM_GOAL_ONE" )
 			else:

@@ -33,7 +33,7 @@ class PYAiManager( GEAi.CAiManager ):
 	def CreateNPC( self, ident, parent ):
 		tmp = FindModule( Ai, ident )
 		if not tmp:
-			GEUtil.Warning( "Failed to find npc %s!\n" % ident )
+			GEUtil.DevWarning( "Failed to find npc %s!\n" % ident )
 			return None
 		else:
 			ident = tmp

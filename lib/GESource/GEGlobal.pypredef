@@ -56,6 +56,22 @@ TEAM_SPECTATOR = int
 TEAM_MI6 = int
 TEAM_JANUS = int
 
+#
+# These are meta teams for better filtering of messages
+#
+TEAM_OBS = int
+# All observers and spectators (regardless of team)
+TEAM_NO_OBS = int
+# All players that are NOT observers or spectators (regardless of team)
+TEAM_MI6_OBS = int
+# Only MI6 observers and spectators
+TEAM_MI6_NO_OBS = int
+# Only MI6 team members that are NOT observers (no spectators)
+TEAM_JANUS_OBS = int
+# Only Janus observers and spectators
+TEAM_JANUS_NO_OBS = int
+# Only Janus team members that are NOT observers (no spectators)
+
 # Teamplay allowance
 TEAMPLAY_NONE = int
 TEAMPLAY_ALWAYS = int
