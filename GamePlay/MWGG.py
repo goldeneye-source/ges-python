@@ -18,7 +18,7 @@
 #############################################################################
 from . import GEScenario
 from GEUtil import Color
-import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
+import GEEntity, GEUtil, GEMPGameRules, GEGlobal
 
 USING_API = GEGlobal.API_VERSION_1_1_0
 
@@ -68,14 +68,14 @@ class MWGG( GEScenario ):
 		if not killer or victim == killer:
 			# Death by world or suicide
 			if victim == self.gg_owner:
-				GEUtil.EmitGameplayEvent( "mwgg_suicide", "%i" % victim.GetUserID() )
+				GEUtil.EmitGameplayEvent( "mwgg_suicide", str( victim.GetUserID() ) )
 				GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_SUICIDE" )
 
 			victim.AddRoundScore( -1 )
 		else:
 			# Regular kill
 			if victim == self.gg_owner:
-				GEUtil.EmitGameplayEvent( "mwgg_killed", "%i" % victim.GetUserID(), "%i" % killer.GetUserID() )
+				GEUtil.EmitGameplayEvent( "mwgg_killed", str( victim.GetUserID() ), str( killer.GetUserID() ) )
 				GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_KILLED", killer.GetCleanPlayerName() )
 
 			killer.AddRoundScore( 1 )
@@ -98,7 +98,7 @@ class MWGG( GEScenario ):
 
 		GEUtil.PlaySoundTo( player, "GEGamePlay.Token_Grab" )
 		GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_PICKED", player.GetCleanPlayerName() )
-		GEUtil.EmitGameplayEvent( "mwgg_ggpickup", "%i" % player.GetUserID() )
+		GEUtil.EmitGameplayEvent( "mwgg_ggpickup", str( player.GetUserID() ) )
 		GEUtil.HudMessage( player, "#GES_GP_MWGG_HAVEGG", -1, 0.75, self.gg_owner_color, 3.0 )
 
 		radar.SetPlayerRangeMod( player, 0.5 )

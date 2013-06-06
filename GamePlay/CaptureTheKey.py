@@ -2,14 +2,14 @@
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
-# GoldenEye: Source's Python Library is free software: you can redistribute 
-# it and/or modify it under the terms of the GNU General Public License as 
-# published by the Free Software Foundation, either version 3 of the License, 
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
 # or(at your option) any later version.
 #
-# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# GoldenEye: Source's Python Library is distributed in the hope that it will
 # be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
 # Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -305,7 +305,7 @@ class CaptureTheKey( GEScenario ):
 			# Check to see if this was a kill against a token bearer (defense)
 			if victim == self.game_tokens[victimTeam].GetOwner():
 				clr_hint = '^i' if killerTeam == Glb.TEAM_MI6 else '^r'
-				GEUtil.EmitGameplayEvent( "ctk_tokendefended", "%i" % killer.GetUserID(), "%i" % victim.GetUserID(), "%i" % victimTeam )
+				GEUtil.EmitGameplayEvent( "ctk_tokendefended", str( killer.GetUserID() ), str( victim.GetUserID() ), str( victimTeam ) )
 				GEUtil.PostDeathMessage( _( "#GES_GP_CTK_DEFENDED", clr_hint, killer.GetCleanPlayerName(), self.ctk_TokenName( victimTeam ) ) )
 				killer.AddRoundScore( 2 )
 			else:
@@ -379,7 +379,7 @@ class CaptureTheKey( GEScenario ):
 		GERules.GetRadar().AddRadarContact( player, Glb.RADAR_TYPE_PLAYER, True, "sprites/hud/radar/run", self.ctk_GetColor( player.GetTeamNumber() ) )
 		GERules.GetRadar().SetupObjective( player, Glb.TEAM_NONE, "", self.ctk_TokenName( tokenTeam ), self.ctk_GetColor( tokenTeam, self.COLOR_OBJ_HOT ) )
 
-		GEUtil.EmitGameplayEvent( "ctk_tokenpicked", "%i" % player.GetUserID(), "%i" % tokenTeam )
+		GEUtil.EmitGameplayEvent( "ctk_tokenpicked", str( player.GetUserID() ), str( tokenTeam ) )
 
 		# Token bearers move faster
 		player.SetSpeedMultiplier( self.rules_speedMultiplier )
@@ -402,7 +402,7 @@ class CaptureTheKey( GEScenario ):
 		self.game_timers[tokenTeam].Stop()
 		GEUtil.RemoveHudProgressBar( player, self.PROBAR_OVERRIDE )
 
-		GEUtil.EmitGameplayEvent( "ctk_tokendropped", "%i" % player.GetUserID(), "%i" % tokenTeam )
+		GEUtil.EmitGameplayEvent( "ctk_tokendropped", str( player.GetUserID() ), str( tokenTeam ) )
 
 		GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", self.ctk_GetColor( tokenTeam ) )
 		GERules.GetRadar().SetupObjective( token, Glb.TEAM_NONE, "", self.ctk_TokenName( tokenTeam ), self.ctk_GetColor( tokenTeam, self.COLOR_OBJ_COLD ) )
@@ -430,7 +430,7 @@ class CaptureTheKey( GEScenario ):
 	def OnPlayerSay( self, player, text ):
 		team = player.GetTeamNumber()
 		# If the player issues !voodoo they will drop their token
-		if text.lower() == "!voodoo" and team != Glb.TEAM_SPECTATOR:
+		if text.lower() == Glb.SAY_COMMAND1 and team != Glb.TEAM_SPECTATOR:
 			tokendef = self.game_tokens[team]
 			if player == tokendef.GetOwner():
 				if GEUtil.GetTime() >= tokendef.next_drop_time:
@@ -497,7 +497,7 @@ class CaptureTheKey( GEScenario ):
 		if not self.warmupTimer.IsInWarmup():
 			GERules.GetTeam( tokenTeam ).AddRoundScore( 1 )
 			holder.AddRoundScore( self.rules_playerCapPoints )
-			GEUtil.EmitGameplayEvent( "ctk_tokencapture", "%i" % holder.GetUserID(), "%i" % tokenTeam )
+			GEUtil.EmitGameplayEvent( "ctk_tokencapture", str( holder.GetUserID() ), str( tokenTeam ) )
 
 		GEUtil.PlaySoundTo( tokenTeam, "GEGamePlay.Token_Capture_Friend", True )
 		GEUtil.PlaySoundTo( otherTeam, "GEGamePlay.Token_Capture_Enemy", True )

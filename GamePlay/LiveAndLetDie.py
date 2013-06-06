@@ -19,47 +19,21 @@
 from . import GEScenario
 from Utils import choice, clamp, plural, GetPlayers
 from Utils.GEPlayerTracker import GEPlayerTracker
+from Utils.GETimer import TimerTracker, EndRoundCallback
 from GEUtil import Color
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
 import random
-import GEGamePlay
 
 USING_API = GEGlobal.API_VERSION_1_1_0
+
 EP_SHOUT_COLOR = Color( 240, 200, 120, 170 )
-LLD_DEBUG = False
-
-def ep_forcerespawn():
-	for j in range( 32 ):
-		if GEPlayer.IsValidPlayerIndex( j ):
-			GEPlayer.GetMPPlayer( j ).ForceRespawn()
-
-def ep_goldeneye_handicap( hc ):
-	return 2.0 ** ( float( hc ) / 3.0 )
-
-def ep_id_by_entity( ent ):
-	if ent != None:
-		return GEEntity.GetUID( ent )
-	return 0
+LLD_DEBUG = True
 
 def ep_loadout_slot( index ):
 	weapon = GEMPGameRules.GetWeaponInSlot( index )
 	if weapon != None:
 		return GEWeapon.WeaponClassname( weapon ).lower()
 	return "weapon_paintbrush"
-
-def ep_playername_by_uid( uid ):
-	player = ep_player_by_uid( uid )
-	return player.GetPlayerName() if player else ""
-
-def ep_player_by_uid( uid ):
-	if uid != 0:
-		return GEPlayer.ToMPPlayer( GEEntity.GetEntByUID( uid ) )
-	return None
-
-def ep_shout( msg ):
-	GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, msg )
-	GEUtil.HudMessage( None, msg, -1, -1, EP_SHOUT_COLOR, 2.0 )
-	return msg
 
 def ep_weapon_by_info( info ):
 	weaponsurrogate = info.GetWeapon()
@@ -69,25 +43,16 @@ def ep_weapon_by_info( info ):
 			return weapon.GetClassname().lower()
 	return "weapon_paintbrush"
 
-def ep_weightedselect_random( weightlist ):
-	if type( weightlist ) is not list:
-		raise TypeError( "Weights must be a list type" )
+def ep_shout( msg ):
+	GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, msg )
+	GEUtil.HudMessage( None, msg, -1, -1, EP_SHOUT_COLOR, 2.0 )
+	return msg
 
-	totalweight = 0
-	for x in weightlist:
-		totalweight += x
-	target = random.random() * float( totalweight )
-	for i in range( len( weightlist ) ):
-		target -= weightlist[i]
-		if target <= 0:
-			return i
-	# Should never get here, but floats do happen
-	return len( weightlist ) - 1
 
 # ///////////////////////////////////////////////////////////////////////////////
 # Globals for LALD
 TR_INROUND = "inround"
-TR_SPAWNED = "spawned"
+TR_TICKETS = "tickets"
 
 class LiveAndLetDie( GEScenario ):
 	HELPID_BOND = -1
@@ -98,6 +63,7 @@ class LiveAndLetDie( GEScenario ):
 		self.lld_declare_scenario_data()
 		self.lld_declare_baron_data()
 		self.pltracker = GEPlayerTracker( self )
+		self.timer = TimerTracker( self )
 
 	def Cleanup( self ):
 		super( LiveAndLetDie, self ).Cleanup()
@@ -113,7 +79,8 @@ class LiveAndLetDie( GEScenario ):
 		return GEGlobal.TEAMPLAY_NONE
 
 	def GetScenarioHelp( self, help_obj ):
-		assert isinstance( help_obj, GEGamePlay.CScenarioHelp )
+		from GEGamePlay import CScenarioHelp
+		assert isinstance( help_obj, CScenarioHelp )
 
 		help_obj.SetInfo( "#GES_GPH_LALD_TAGLINE", "http://wiki.geshl2.com/index.php/Live_and_Let_Die" )
 		help_obj.SetDescription( "#GES_GP_LALD_HELP" )
@@ -154,6 +121,7 @@ class LiveAndLetDie( GEScenario ):
 
 	def OnPlayerConnect( self, player ):
 		self.pltracker[player][TR_INROUND] = False
+		self.pltracker[player][TR_TICKETS] = 0
 
 	def OnPlayerDisconnect( self, player ):
 		if self.lld_player_isbaron( player ):
@@ -180,7 +148,7 @@ class LiveAndLetDie( GEScenario ):
 			GEUtil.PlaySoundTo( None, "GEGamePlay.Baron_EpicFail", True )
 			endtype = "bondflawless"
 
-		GEUtil.EmitGameplayEvent( "lald_roundend", endtype, "%i" % baronid, "%i" % bondid )
+		GEUtil.EmitGameplayEvent( "lald_roundend", endtype, str( baronid ), str( bondid ) )
 
 	def OnPlayerSpawn( self, player ):
 		assert isinstance( player, GEPlayer.CGEMPPlayer )
@@ -203,6 +171,10 @@ class LiveAndLetDie( GEScenario ):
 				else:
 					self.lld_authorize_player( player )
 
+	def OnPlayerObserver( self, player ):
+		# Updates the bars
+		self.lld_progress()
+
 	def OnPlayerKilled( self, victim, killer, weapon ):
 		if victim == None:
 			return
@@ -220,13 +192,13 @@ class LiveAndLetDie( GEScenario ):
 				self.lld_eliminateplayer( victim )
 				victim.AddRoundScore( -self.lld_num_inround_players() + 1 )
 				baronid = self.lld_Baron().GetUserID() if ( self.lld_Baron() ) else -1
-				GEUtil.EmitGameplayEvent( "lald_eliminated", "%i" % victim.GetUserID(), "%i" % baronid, "suicide" )
+				GEUtil.EmitGameplayEvent( "lald_eliminated", str( victim.GetUserID() ), str( baronid ), "suicide" )
 			elif self.lld_player_isbaron( killer ):
 				killer.AddRoundScore( 1 )
 				self.baron_frags += 1
 				self.lld_eliminateplayer( victim )
 				baronid = self.lld_Baron().GetUserID() if ( self.lld_Baron() ) else -1
-				GEUtil.EmitGameplayEvent( "lald_eliminated", "%i" % victim.GetUserID(), "%i" % baronid, "baronkill" )
+				GEUtil.EmitGameplayEvent( "lald_eliminated", str( victim.GetUserID() ), str( baronid ), "baronkill" )
 
 	def CanPlayerChangeTeam( self, player, oldalliance, newalliance ):
 		if newalliance == GEGlobal.TEAM_SPECTATOR:
@@ -269,26 +241,26 @@ class LiveAndLetDie( GEScenario ):
 					other_plr = GEPlayer.GetMPPlayer( i )
 					if other_plr and other_plr.GetMatchScore() < myscore:
 						rank -= 1
-				GEUtil.ClientPrint( player, GEGlobal.HUD_PRINTTALK, "#GES_GP_RANK", rank, GEMPGameRules.GetNumActivePlayers() )
+				GEUtil.ClientPrint( player, GEGlobal.HUD_PRINTTALK, "#GES_GP_RANK", str( rank ), str( GEMPGameRules.GetNumActivePlayers() ) )
 
 			return True
 
 		elif LLD_DEBUG:
 			if text == "!baron":
-				Baron = self.lld_Baron()
-				if Baron != None:
-					GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "%d/%d, Baron: %s, Level %d" % ( Baron.GetHealth(), Baron.GetArmor(), ep_playername_by_uid( self.baron_uid ), self.baron_level ) )
+				baron = self.lld_Baron()
+				if baron != None:
+					GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "%d/%d, Baron: %s, Level %d" % ( baron.GetHealth(), baron.GetArmor(), baron.GetCleanPlayerName(), self.baron_level ) )
 				else:
 					GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "There is no Baron Samedi." )
 				return True
 			if text == "!status" or text == "!state":
-				ep_shout( "Playercount: %d/%d, Bounty: %d, State: %d, Result: %d, Denoue: %d" % ( GEMPGameRules.GetNumActivePlayers(), GEMPGameRules.GetNumActivePlayers(), self.bounty, self.gamestate, self.result, self.denouement ) )
+				ep_shout( "Playercount: %d/%d, Bounty: %d, State: %d, Result: %d" % ( GEMPGameRules.GetNumActivePlayers(), GEMPGameRules.GetNumActivePlayers(), self.bounty, self.gamestate, self.result ) )
 				return True
 			if text == "!embaron":
 				self.lld_embaron_randomly()
 				return True
 			if text == "!embaron_me":
-				self.lld_embaron( ep_id_by_entity( player ) )
+				self.lld_embaron( player )
 				return True
 			if text == "!levelup":
 				self.lld_baron_levelup()
@@ -347,14 +319,9 @@ class LiveAndLetDie( GEScenario ):
 				self.gamestate = self.GAMESTATE_INACTIVE
 		elif self.gamestate == self.GAMESTATE_INACTIVE:
 			if num_plrs > 1:
-				ep_forcerespawn()
+				for plr in GetPlayers():
+					plr.ForceRespawn()
 				self.lld_round_begin()
-
-		if self.denouement > 0:
-			self.denouement -= 1
-			if self.denouement == 0:
-				GEMPGameRules.EndRound( True )
-				self.denouement = -1
 
 	def OnTokenSpawned( self, token ):
 		GEMPGameRules.GetRadar().AddRadarContact( token, GEGlobal.RADAR_TYPE_TOKEN, True, self.RADAR_AUG_ICON )
@@ -375,7 +342,7 @@ class LiveAndLetDie( GEScenario ):
 		GEUtil.PlaySoundTo( player, "GEGamePlay.Token_Grab" )
 		GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_MWGG_PICKED", player.GetPlayerName() )
 		GEUtil.HudMessage( player, "#GES_GP_MWGG_HAVEGG", -1, 0.75, self.RADAR_SCARAMANGA, 3.0 )
-		GEUtil.EmitGameplayEvent( "lald_ggpickup", "%i" % player.GetUserID() )
+		GEUtil.EmitGameplayEvent( "lald_ggpickup", str( player.GetUserID() ) )
 
 	def OnTokenDropped( self, token, player ):
 		self.aug_holder = None
@@ -453,7 +420,6 @@ class LiveAndLetDie( GEScenario ):
 	def lld_zot_round( self ):
 		self.gamestate = self.GAMESTATE_INACTIVE
 		self.result = self.RESULT_NONE
-		self.denouement = -1
 		self.bounty = 0
 
 	def lld_authorize_everyone( self ):
@@ -491,16 +457,11 @@ class LiveAndLetDie( GEScenario ):
 		self.lld_progress()
 
 	def lld_Baron( self ):
-		if self.baron_uid != 0:
-			return ep_player_by_uid( self.baron_uid )
-		return None
+		return GEPlayer.ToMPPlayer( self.baron_uid )
 
 	def lld_baron_damageamp( self ):
-		if self.baron_uid != 0:
-			baron = self.lld_Baron()
-			assert isinstance( baron, GEPlayer.CGEMPPlayer )
-			if baron == None:
-				return 0
+		baron = self.lld_Baron()
+		if baron:
 			if self.baron_level < self.BARON_WEAPON_LIMIT:
 				baron.SetDamageMultiplier( 1.0 )
 				return 0
@@ -511,25 +472,25 @@ class LiveAndLetDie( GEScenario ):
 		return 0
 
 	def lld_baron_damagefactor( self ):
-		if self.baron_uid != 0 and self.baron_level >= self.BARON_WEAPON_LIMIT:
-			amp = ep_goldeneye_handicap( ( self.baron_level - self.BARON_WEAPON_LIMIT ) * self.BARON_HANDICAP_RATE )
-			amp = clamp( amp, 1.0, 21.0 )
-			return amp
+		if self.lld_Baron and self.baron_level >= self.BARON_WEAPON_LIMIT:
+			amp = ( self.baron_level - self.BARON_WEAPON_LIMIT ) * self.BARON_HANDICAP_RATE
+			amp = 2.0 ** ( amp / 3.0 )
+			return clamp( amp, 1.0, 21.0 )
 		return 1.0
 
 	def lld_baron_givearsenel( self ):
 		if self.baron_uid == 0:
 			return
-		Baron = self.lld_Baron()
-		if Baron != None:
-			Baron.StripAllWeapons()
-			Baron.GiveNamedWeapon( self.BARON_MACHETE, 1 )
+		baron = self.lld_Baron()
+		if baron:
+			baron.StripAllWeapons()
+			baron.GiveNamedWeapon( self.BARON_MACHETE, 1 )
 			arsenelquality = self.lld_baron_weaponlevel()
 			while arsenelquality > 0:
 				arsenelquality -= 1
 				thisgun = ep_loadout_slot( arsenelquality )
 				if thisgun != "weapon_golden_gun":
-					Baron.GiveNamedWeapon( thisgun, self.BARON_SPAWN_AMMO )
+					baron.GiveNamedWeapon( thisgun, self.BARON_SPAWN_AMMO )
 
 	def lld_baron_initialize( self ):
 		self.baron_voodoo = self.BARON_VOODOO_DEFAULT
@@ -546,80 +507,77 @@ class LiveAndLetDie( GEScenario ):
 			GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_LALD_DAMAGE", str( self.lld_baron_damageamp() ) )
 
 	def lld_baron_remove_voodoobar( self ):
-		if self.baron_uid != 0:
-			Baron = self.lld_Baron()
-			if Baron != None:
-				GEUtil.RemoveHudProgressBar( Baron, 0 )
-				GEUtil.RemoveHudProgressBar( Baron, 1 )
+		baron = self.lld_Baron()
+		if baron:
+			GEUtil.RemoveHudProgressBar( baron, 0 )
+			GEUtil.RemoveHudProgressBar( baron, 1 )
 
-	def lld_baron_spawn( self, player ):
+	def lld_baron_spawn( self, baron ):
 		self.lld_baron_speedamp()
 		self.lld_baron_damageamp()
 		self.lld_baron_givearsenel()
-		if player != None:
-			player.SetArmor( self.BARON_SPAWN_ARMOR )
+
+		if baron:
+			baron.SetArmor( self.BARON_SPAWN_ARMOR )
 			if self.baron_health_cache >= 0:
-				player.SetHealth( max( self.BARON_SPAWN_RECOVER, self.baron_health_cache ) )
+				baron.SetHealth( max( self.BARON_SPAWN_RECOVER, self.baron_health_cache ) )
 
 	def lld_baron_speedamp( self ):
-		if self.baron_uid == 0:
-			return
-		Baron = self.lld_Baron()
-		if Baron == None:
-			return
-		players = self.lld_num_inround_players();
-		factor = clamp( ( 20.0 / ( float( players ) + 14.5 ) ) ** 0.5, 0.91, 1.1 )
-		Baron.SetSpeedMultiplier( factor )
+		baron = self.lld_Baron()
+		if baron:
+			players = self.lld_num_inround_players();
+			factor = clamp( ( 20.0 / ( float( players ) + 14.5 ) ) ** 0.5, 0.91, 1.1 )
+			baron.SetSpeedMultiplier( factor )
 
 	def lld_baron_update_voodoobar( self ):
 		HUD_WIDTH = 80
-		if self.baron_uid != 0:
-			Baron = self.lld_Baron()
-			if Baron == None:
-				return
+		baron = self.lld_Baron()
+		if baron:
 			if self.baron_voodoo_recharge == 0:
 				inflate = choice( GEUtil.GetCVarValue( self.CVAR_BLOODLUST ) != "0", 0, self.BARON_VOODOO_COST - 1 )
 				width = choice( GEUtil.GetCVarValue( self.CVAR_BLOODLUST ) != "0", self.BARON_VOODOO_MAX, self.BARON_VOODOO_DEFAULT + inflate )
 				casts = self.lld_baron_voodoo_castsremaining()
 				if casts > 0:
 					barcolor = choice( self.baron_voodoo + inflate < self.BARON_VOODOO_MAX, self.BARON_PROGRESS_NORMAL, self.BARON_PROGRESS_FULL )
-					GEUtil.InitHudProgressBar( Baron, 1, "%s\r%i" % ( self.CAPTION_VOODOO, casts ), GEGlobal.HUDPB_SHOWBAR, 1, -1, .72, 0, 0, barcolor )
-					GEUtil.InitHudProgressBar( Baron, 0, "", GEGlobal.HUDPB_SHOWBAR, width, -1, .76, HUD_WIDTH, 10, barcolor )
+					GEUtil.InitHudProgressBar( baron, 1, "%s\r%i" % ( self.CAPTION_VOODOO, casts ), GEGlobal.HUDPB_SHOWBAR, 1, -1, .72, 0, 0, barcolor )
+					GEUtil.InitHudProgressBar( baron, 0, "", GEGlobal.HUDPB_SHOWBAR, width, -1, .76, HUD_WIDTH, 10, barcolor )
 				else:
-					GEUtil.InitHudProgressBar( Baron, 1, self.CAPTION_EXHAUSTED, GEGlobal.HUDPB_SHOWBAR, 1, -1, .72, 0, 0, self.BARON_PROGRESS_EXHAUSTED )
-					GEUtil.InitHudProgressBar( Baron, 0, "", GEGlobal.HUDPB_SHOWBAR, width, -1, .76, HUD_WIDTH, 10, self.BARON_PROGRESS_EXHAUSTED )
+					GEUtil.InitHudProgressBar( baron, 1, self.CAPTION_EXHAUSTED, GEGlobal.HUDPB_SHOWBAR, 1, -1, .72, 0, 0, self.BARON_PROGRESS_EXHAUSTED )
+					GEUtil.InitHudProgressBar( baron, 0, "", GEGlobal.HUDPB_SHOWBAR, width, -1, .76, HUD_WIDTH, 10, self.BARON_PROGRESS_EXHAUSTED )
 					inflate = 0
-				GEUtil.UpdateHudProgressBar( Baron, 0, float( self.baron_voodoo + inflate ) )
+				GEUtil.UpdateHudProgressBar( baron, 0, float( self.baron_voodoo + inflate ) )
 			else:
 				if self.baron_voodoo_recharge >= self.BARON_VOODOO_RECHARGE - 1:
-					GEUtil.InitHudProgressBar( Baron, 1, choice( self.baron_voodoo > 0, self.CAPTION_REFRACTORY, self.CAPTION_EXHAUSTED ), GEGlobal.HUDPB_SHOWBAR, 1, -1, .72, 0, 0, self.BARON_PROGRESS_EXHAUSTED )
-					GEUtil.InitHudProgressBar( Baron, 0, "", GEGlobal.HUDPB_SHOWBAR, self.BARON_VOODOO_RECHARGE - 1, -1, .76, HUD_WIDTH, 10, self.BARON_PROGRESS_EXHAUSTED )
-				GEUtil.UpdateHudProgressBar( Baron, 0, self.baron_voodoo_recharge )
-
+					GEUtil.InitHudProgressBar( baron, 1, choice( self.baron_voodoo > 0, self.CAPTION_REFRACTORY, self.CAPTION_EXHAUSTED ), GEGlobal.HUDPB_SHOWBAR, 1, -1, .72, 0, 0, self.BARON_PROGRESS_EXHAUSTED )
+					GEUtil.InitHudProgressBar( baron, 0, "", GEGlobal.HUDPB_SHOWBAR, self.BARON_VOODOO_RECHARGE - 1, -1, .76, HUD_WIDTH, 10, self.BARON_PROGRESS_EXHAUSTED )
+				GEUtil.UpdateHudProgressBar( baron, 0, self.baron_voodoo_recharge )
 
 	def lld_baron_usevoodoo( self ):
-		if self.baron_uid != 0:
-			Baron = self.lld_Baron()
-			if Baron == None:
-				return False
-			if self.baron_voodoo_recharge == 0 and self.result == self.RESULT_NONE and Baron.IsDead() == False:
+		baron = self.lld_Baron()
+		if baron:
+			if self.baron_voodoo_recharge == 0 and self.result == self.RESULT_NONE and not baron.IsDead():
 				if self.baron_voodoo > 0:
+					# Kick off the particle effect FIRST, when we revisit from OnThink we will actually teleport
 					if self.hack_voodoodelay == 0:
 						self.hack_voodoodelay = 1
-						GEUtil.ParticleEffect( Baron, "eyes", "ge_baron_teleport", False )
+						GEUtil.ParticleEffect( baron, "eyes", "ge_baron_teleport", False )
 						return
+
+					# Now we can actually teleport
 					self.hack_voodoodelay = 0
 					self.baron_voodoo = max( 0, self.baron_voodoo - self.BARON_VOODOO_COST )
 					self.baron_voodoo_recharge = self.BARON_VOODOO_RECHARGE
-					self.baron_health_cache = Baron.GetHealth() + self.BARON_SPAWN_RECOVER
+					self.baron_health_cache = baron.GetHealth() + self.BARON_SPAWN_RECOVER
+					# Upgrade the baron's weapons
 					self.lld_baron_levelup()
-					Baron.ForceRespawn()
 					self.lld_baron_update_voodoobar()
+					# Play the voodoo laugh
 					GEUtil.PlaySoundTo( None, "GEGamePlay.Baron_Voodoo", True )
-					return True
+					# Force the respawn
+					baron.ForceRespawn()
 				else:
+					# We have no power left, fall through to below
 					GEUtil.HudMessage( self.lld_Baron(), "#GES_GP_LALD_NOPOWER", -1, -1, EP_SHOUT_COLOR, 2.0 )
-		return False
 
 	def lld_baron_validweapon( self, weapon ):
 		if weapon == None:
@@ -657,10 +615,9 @@ class LiveAndLetDie( GEScenario ):
 		self.baron_voodoo = clamp( self.baron_voodoo, 0, self.BARON_VOODOO_MAX )
 		self.lld_baron_update_voodoobar()
 		if casts < self.lld_baron_voodoo_castsremaining():
-			if self.baron_uid != 0:
-				Baron = self.lld_Baron()
-				if Baron != None:
-					GEUtil.PlaySoundTo( Baron, "GEGamePlay.Token_Chime" )
+			baron = self.lld_Baron()
+			if baron:
+				GEUtil.PlaySoundTo( baron, "GEGamePlay.Token_Chime" )
 
 	def lld_declare_baron_data( self ):
 		self.BARON_MACHETE = 'weapon_knife'
@@ -713,6 +670,7 @@ class LiveAndLetDie( GEScenario ):
 		self.GAMESTATE_SHUT = 35
 		self.GAMESTATE_ENDOFROUND = 45
 		self.PROGRESS_YLOC = .02
+		self.PROGRESS_YLOC_OBS = .14
 		self.gamestate = self.GAMESTATE_INACTIVE
 		self.override_disembaron = 0
 		self.denouement = -1
@@ -724,38 +682,54 @@ class LiveAndLetDie( GEScenario ):
 	def lld_declarewinner_baron( self ):
 		self.gamestate = self.GAMESTATE_ENDOFROUND
 		self.result = self.RESULT_BARONWIN
-		ep_shout( "#GES_GP_LALD_BARONWINS" )
-		self.denouement = self.DENOUEMENT_LONG
+		# Give the Baron his points
 		baron = self.lld_Baron()
 		baron.AddRoundScore( self.bounty - 1 - baron.GetScore() )
+		# Let everyone know the result
+		ep_shout( "#GES_GP_LALD_BARONWINS" )
+		# End the round after 3.5 seconds
+		self.timer.OneShotTimer( 3.5, EndRoundCallback )
 
 	def lld_declarewinner_misix( self ):
 		self.gamestate = self.GAMESTATE_ENDOFROUND
 		self.result = self.RESULT_BONDWIN
-		self.denouement = self.DENOUEMENT_SHORT
+		# Let everyone know the result
 		ep_shout( "#GES_GP_LALD_BARONLOSES" )
+		# End the round after 1.7 seconds
+		self.timer.OneShotTimer( 1.7, EndRoundCallback )
 
-	def lld_embaron( self, uid ):
-		if uid != 0:
+	def lld_embaron( self, baron ):
+		if baron:
+			# Remove the current baron
 			self.lld_disembaron()
-			self.baron_uid = uid
+			# Store our new baron's id
+			self.baron_uid = baron.GetUID()
 
-			Baron = self.lld_Baron()
-			if Baron != None:
-				self.baron_costume_cache = Baron.GetPlayerModel() if Baron.GetPlayerModel() != self.BARON_COSTUME_BARON else self.BARON_COSTUME_DEFAULT
-				self.baron_costume_cache_skin = Baron.GetSkin()
-				Baron.SetPlayerModel( self.BARON_COSTUME_BARON, 0 )
-				self.lld_baron_update_voodoobar()
-				GEMPGameRules.GetRadar().DropRadarContact( Baron )
-				GEMPGameRules.GetRadar().AddRadarContact( Baron, GEGlobal.RADAR_TYPE_PLAYER, True, self.RADAR_BARON_ICON )
-				# Only the GG Holder can see the baron's objective icon
-				GEMPGameRules.GetRadar().SetupObjective( Baron, GEGlobal.TEAM_NONE, self.TOKEN_AUG_ENTITY, "", Color( 255, 255, 255, 100 ), 300 )
-				self.lld_baron_spawn( Baron )
-				Baron.SetScoreBoardColor( GEGlobal.SB_COLOR_WHITE )
-				# Baron specific help
-				if not self.pltracker.GetValue( Baron, "baronhelp" ):
-					self.ShowScenarioHelp( Baron, self.HELPID_BARON )
-					self.pltracker.SetValue( Baron, "baronhelp", True )
+			# Setup the baron's costume
+			self.baron_costume_cache = baron.GetPlayerModel() if baron.GetPlayerModel() != self.BARON_COSTUME_BARON else self.BARON_COSTUME_DEFAULT
+			self.baron_costume_cache_skin = baron.GetSkin()
+			baron.SetPlayerModel( self.BARON_COSTUME_BARON, 0 )
+
+			# Setup the voodoo bar and radar icons
+			self.lld_baron_update_voodoobar()
+			baron.SetScoreBoardColor( GEGlobal.SB_COLOR_WHITE )
+			GEMPGameRules.GetRadar().DropRadarContact( baron )
+			GEMPGameRules.GetRadar().AddRadarContact( baron, GEGlobal.RADAR_TYPE_PLAYER, True, self.RADAR_BARON_ICON )
+			# Only the GG Holder can see the baron's objective icon
+			GEMPGameRules.GetRadar().SetupObjective( baron,
+													team_filter=GEGlobal.TEAM_NONE,
+													token_filter=self.TOKEN_AUG_ENTITY,
+													color=Color( 255, 255, 255, 100 ),
+													min_dist=300 )
+			# Give us a ticket for playing
+			self.pltracker[baron][TR_TICKETS] += 1
+			# Spawn us randomly
+			self.lld_baron_spawn( baron )
+
+			# Baron specific help
+			if not self.pltracker.GetValue( baron, "baronhelp" ):
+				self.ShowScenarioHelp( baron, self.HELPID_BARON )
+				self.pltracker.SetValue( baron, "baronhelp", True )
 
 	def lld_disembaron( self ):
 		baron = self.lld_Baron()
@@ -777,16 +751,28 @@ class LiveAndLetDie( GEScenario ):
 	def lld_embaron_randomly( self ):
 		if self.lld_num_inround_players() < 2:
 			return
-		self.lld_disembaron()
 
-		players = self.pltracker.GetPlayers( TR_INROUND, True )
-		prospect_uid = 0
-		while prospect_uid == 0:
-			choice = random.choice( players )
-			if choice != self.baron_previous_uid:
-				prospect_uid = choice.GetUID()
+		only_inround = lambda x: x.get( TR_INROUND, False )
+		player_slice = self.pltracker.Slice( TR_TICKETS, only_inround )
 
-		self.lld_embaron( prospect_uid )
+		# Figure out our smallest held ticket count
+		player_slice = sorted( player_slice, lambda x, y: cmp( x[1], y[1] ) )
+		min_tickets = player_slice[0][1]
+		
+		# Remove all players with more than the minimum ticket count and the current baron
+		# this ensures that everyone gets to play as the baron during the course of a match
+		candidates = [x for x, y in player_slice if y == min_tickets and x != self.baron_uid]
+		
+		if len( candidates ) == 0:
+			# Failure case, should never happen
+			GEUtil.Warning( "[LALD] Failed to pick a baron due to lack of candidates!\n" )
+			return
+		
+		if LLD_DEBUG:
+			GEUtil.Msg( "[LALD] Picking a baron from %i candidates with ticket count %i!\n" % (len( candidates ), min_tickets) )
+		
+		# Randomly choose the next Baron!
+		self.lld_embaron( random.choice( candidates ) )
 
 	def lld_misix_jackpot( self ):
 		for player in GetPlayers():
@@ -794,19 +780,20 @@ class LiveAndLetDie( GEScenario ):
 				player.AddRoundScore( self.bounty )
 
 	def lld_player_isbaron( self, player ):
-		return self.baron_uid != 0 and self.baron_uid == ep_id_by_entity( player )
+		return player == self.baron_uid
 
 	def lld_progress( self ):
 		if self.gamestate != self.GAMESTATE_SHUT and self.gamestate != self.GAMESTATE_OPEN:
 			GEUtil.RemoveHudProgressBar( None, 3 )
 		else:
 			barcolor = choice( self.aug_holder != None, self.BARON_PROGRESS_NORMAL, self.BARON_PROGRESS_FULL )
-			GEUtil.InitHudProgressBar( None, 3, "#GES_GP_FOES", GEGlobal.HUDPB_SHOWVALUE, self.bounty - 1, -1, self.PROGRESS_YLOC, 0, 10, barcolor )
-			playerslessone = self.lld_num_inround_players() - 1
-			if playerslessone > 1:
-				GEUtil.UpdateHudProgressBar( None, 3, playerslessone )
-			elif playerslessone == 1:
-				GEUtil.InitHudProgressBar( None, 3, "#GES_GP_SHOWDOWN", GEGlobal.HUDPB_SHOWBAR, self.bounty - 1, -1, self.PROGRESS_YLOC, 0, 10, barcolor )
+			players_left = self.lld_num_inround_players() - 1
+			if players_left > 1:
+				GEUtil.InitHudProgressBar( GEGlobal.TEAM_NO_OBS, 3, "#GES_GP_FOES", GEGlobal.HUDPB_SHOWVALUE, self.bounty - 1, -1, self.PROGRESS_YLOC, 0, 10, barcolor, players_left )
+				GEUtil.InitHudProgressBar( GEGlobal.TEAM_OBS, 3, "#GES_GP_FOES", GEGlobal.HUDPB_SHOWVALUE, self.bounty - 1, -1, self.PROGRESS_YLOC_OBS, 0, 10, barcolor, players_left )
+			elif players_left == 1:
+				GEUtil.InitHudProgressBar( GEGlobal.TEAM_NO_OBS, 3, "#GES_GP_SHOWDOWN", GEGlobal.HUDPB_SHOWBAR, self.bounty - 1, -1, self.PROGRESS_YLOC, 0, 10, barcolor )
+				GEUtil.InitHudProgressBar( GEGlobal.TEAM_OBS, 3, "#GES_GP_SHOWDOWN", GEGlobal.HUDPB_SHOWBAR, self.bounty - 1, -1, self.PROGRESS_YLOC_OBS, 0, 10, barcolor )
 			else:
 				GEUtil.RemoveHudProgressBar( None, 3 )
 
