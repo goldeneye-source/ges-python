@@ -2,14 +2,14 @@
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
-# GoldenEye: Source's Python Library is free software: you can redistribute 
-# it and/or modify it under the terms of the GNU General Public License as 
-# published by the Free Software Foundation, either version 3 of the License, 
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
 # or(at your option) any later version.
 #
-# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# GoldenEye: Source's Python Library is distributed in the hope that it will
 # be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
 # Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -210,7 +210,7 @@ class LivingDaylights( GEScenario ):
 		player = ep_player_by_id( flag.player_id )
 		ep_incrementscore( player, frags )
 		self.ft_announceearning( flag, frags )
-		GEUtil.EmitGameplayEvent( "ld_flagpoint", "%i" % player.GetUserID(), "-1", "timer", "%i" % frags )
+		GEUtil.EmitGameplayEvent( "ld_flagpoint", str( player.GetUserID() ), "-1", "timer", str( frags ) )
 
 	def ft_creditescape( self, flag ):
 		player = ep_player_by_id( flag.player_id )
@@ -218,7 +218,7 @@ class LivingDaylights( GEScenario ):
 		self.ft_escapee_armorup( flag, player )
 		self.ft_announceescaping( flag )
 		self.ft_escapebar_remove( flag )
-		GEUtil.EmitGameplayEvent( "ld_flagpoint", "%i" % player.GetUserID(), "-1", "escape", "%i" % flag.escapes )
+		GEUtil.EmitGameplayEvent( "ld_flagpoint", str( player.GetUserID() ), "-1", "escape", str( flag.escapes ) )
 
 	def ft_disassociate( self, token, respawned ):
 		flagindex = self.ft_flagindexbytoken( token )
@@ -489,7 +489,7 @@ class LivingDaylights( GEScenario ):
 		flagindex = self.ft_flagindexbyplayer( victim )
 		if flagindex >= 0:
 			self.flaglist[flagindex].player_previous = 0
-			GEUtil.EmitGameplayEvent( "ld_flagdropped", "%i" % victim.GetUserID(), "%i" % killer.GetUserID() )
+			GEUtil.EmitGameplayEvent( "ld_flagdropped", str( victim.GetUserID() ), str( killer.GetUserID() ) )
 
 		vid = GEEntity.GetUID( victim )
 		kid = GEEntity.GetUID( killer )
@@ -501,7 +501,7 @@ class LivingDaylights( GEScenario ):
 			suicide_bounty = -choice( flagindex >= 0, bounty + bounty, 1 )
 			ep_incrementscore( victim, suicide_bounty )
 			if flagindex >= 0:
-				GEUtil.EmitGameplayEvent( "ld_flagpoint", "%i" % victim.GetUserID(), "-1", "suicide", "%i" % suicide_bounty )
+				GEUtil.EmitGameplayEvent( "ld_flagpoint", str( victim.GetUserID() ), "-1", "suicide", str( suicide_bounty ) )
 			return
 
 		# slap and snatch TODO: Verify
@@ -512,7 +512,7 @@ class LivingDaylights( GEScenario ):
 				GEUtil.HudMessage( victim, _( plural( delta, "#GES_GP_LD_LOSEPOINTS" ), delta ), -1, -1, EP_SHOUT_COLOR, 2.0 )
 				ep_incrementscore( killer, delta )
 				GEUtil.HudMessage( killer, _( plural( delta, "#GES_GP_LD_STOLEPOINTS" ), delta ), -1, -1, EP_SHOUT_COLOR, 2.0 )
-				GEUtil.EmitGameplayEvent( "ld_flagpoint", "%i" % victim.GetUserID(), "%i" % killer.GetUserID(), "slapperkill", "%i" % -delta )
+				GEUtil.EmitGameplayEvent( "ld_flagpoint", str( victim.GetUserID() ), str( killer.GetUserID() ), "slapperkill", str( -delta ) )
 
 		# credit if token will be removed from play. TODO: Verify
 		if self.ft_flagdebt() < 0:
@@ -605,7 +605,7 @@ class LivingDaylights( GEScenario ):
 				GEUtil.PlaySoundTo( killer, "Buttons.beep_ok" )
 				GEUtil.PlaySoundTo( victim, "Buttons.Token_Knock" )
 				ep_shout( "Point stolen from %s via slap." % victim.GetPlayerName() )
-				GEUtil.EmitGameplayEvent( "ld_flagpoint", "%i" % killer.GetUserID(), "%i" % victim.GetUserID(), "flaghit", "1" )
+				GEUtil.EmitGameplayEvent( "ld_flagpoint", str( killer.GetUserID() ), str( victim.GetUserID() ), "flaghit", "1" )
 		return health, armour
 
 	def CalcFinalScores( self ):
@@ -624,7 +624,7 @@ class LivingDaylights( GEScenario ):
 		GEMPGameRules.GetRadar().DropRadarContact( token )
 		GEMPGameRules.GetRadar().AddRadarContact( player, GEGlobal.RADAR_TYPE_PLAYER, True, "sprites/hud/radar/run", choice( GEMPGameRules.IsTeamplay(), choice( player.GetTeamNumber() == GEGlobal.TEAM_MI6, self.COLOR_H_MI, self.COLOR_H_JS ), self.COLOR_HOLD ) )
 		GEUtil.PlaySoundTo( player, "GEGamePlay.Token_Grab" )
-		GEUtil.EmitGameplayEvent( "ld_flagpickup", "%i" % player.GetUserID() )
+		GEUtil.EmitGameplayEvent( "ld_flagpickup", str( player.GetUserID() ) )
 		flagindex = self.ft_flagindexbytoken( token )
 		if GEMPGameRules.IsTeamplay() and flagindex >= 0 and self.flaglist[flagindex].team_previous == player.GetTeamNumber() :
 			self.ft_associate( token, player )

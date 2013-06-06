@@ -63,13 +63,11 @@ def plural2( count, singular, plural ):
 	return choice( count == 1, singular, plural )
 
 def GetPlayers():
-	'''Return a list of players in the game'''
-	plrs = []
+	'''Returns a generator to retrieve valid players in the game'''
 	for i in range( 32 ):
 		player = GEPlayer.GetMPPlayer( i )
 		if player:
-			plrs.append( player )
-	return plrs
+			yield player
 
 def OppositeTeam( team ):
 	'''Get the opposite team'''

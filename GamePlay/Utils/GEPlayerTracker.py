@@ -2,14 +2,14 @@
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
-# GoldenEye: Source's Python Library is free software: you can redistribute 
-# it and/or modify it under the terms of the GNU General Public License as 
-# published by the Free Software Foundation, either version 3 of the License, 
+# GoldenEye: Source's Python Library is free software: you can redistribute
+# it and/or modify it under the terms of the GNU General Public License as
+# published by the Free Software Foundation, either version 3 of the License,
 # or(at your option) any later version.
 #
-# GoldenEye: Source's Python Library is distributed in the hope that it will 
+# GoldenEye: Source's Python Library is distributed in the hope that it will
 # be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General 
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
 # Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
@@ -24,6 +24,9 @@ from GEGlobal import EventHooks
 # dictionary
 class GEPlayerTracker:
 	def __init__( self, parent ):
+		if not hasattr( parent, 'RegisterEventHook' ):
+			raise AttributeError( "Parent must be a Gameplay Scenario type!" )
+
 		self.Clear()
 		parent.RegisterEventHook( EventHooks.GP_PLAYERCONNECT, self._Track )
 		parent.RegisterEventHook( EventHooks.GP_PLAYERDISCONNECT, self._Drop )
@@ -120,25 +123,33 @@ class GEPlayerTracker:
 		return count
 
 	def GetPlayers( self, key=None, value=None ):
-		'''Returns a list of tracked players sliced by any supplied key and value combo'''
-		players = []
-		for player, item in self._players.items():
+		'''Returns a generator of players sliced by any supplied key and value combo'''
+		for uid, item in self._players.items():
 			# Convert to a valid player instance
-			player = GEPlayer.ToMPPlayer( player )
+			player = GEPlayer.ToMPPlayer( uid )
 			if not player:
 				continue
 
 			# If we supplied a key check that this entry has it
 			if key and key in item:
 				# If we supplied a value, check that we have this value
-				if value and item[key] == value:
-					players.append( player )
-				elif not value:
-					players.append( player )
+				if not value or ( value and item[key] == value ):
+					yield player
 			elif not key:
-				players.append( player )
+				yield player
 
-		return players
+	def Slice( self, key, filter_cb=None ):
+		'''Returns a generator of tuples with the player and their value for the supplied key'''
+		'''condition_cb can be set to a function that accepts the player's dict in order to filter returns'''
+		if not key:
+			raise AttributeError( "key cannot be None!" )
+
+		for uid, item in self._players.items():
+			# Convert to a valid player instance
+			player = GEPlayer.ToMPPlayer( uid )
+			if player:
+				if not filter_cb or filter_cb( item ):
+					yield ( player, item.get( key, None ) )
 
 	# Prints out a listing of data to the console
 	def DumpData( self ):
