@@ -27,7 +27,7 @@ import random
 USING_API = GEGlobal.API_VERSION_1_1_0
 
 EP_SHOUT_COLOR = Color( 240, 200, 120, 170 )
-LLD_DEBUG = True
+LLD_DEBUG = False
 
 def ep_loadout_slot( index ):
 	weapon = GEMPGameRules.GetWeaponInSlot( index )
