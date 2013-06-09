@@ -89,18 +89,11 @@ class YOLT( GEScenario ):
 		return True
 
 	def OnPlayerSpawn( self, player ):
-		if player.GetTeamNumber() != Glb.TEAM_SPECTATOR:
-			# Update our tracker variables
-			self.pltracker[player][TR_SPAWNED] = True
-
-		if not GERules.IsRoundLocked():
-			self.pltracker[player][TR_ELIMINATED] = False
+		# Update our tracker variables
+		self.pltracker[player][TR_SPAWNED] = True
+		self.pltracker[player][TR_ELIMINATED] = False
 
 		if player.IsInitialSpawn():
-			# If we spawned mid-round let them know why they can't play
-			if not self.yolt_IsInPlay( player ):
-				GEUtil.PopupMessage( player, "#GES_GPH_CANTJOIN_TITLE", "#GES_GPH_CANTJOIN" )
-
 			# Simple help message
 			GEUtil.PopupMessage( player, "#GES_GP_YOLT_NAME", "#GES_GPH_YOLT_GOAL" )
 
@@ -115,8 +108,8 @@ class YOLT( GEScenario ):
 		GEUtil.RemoveHudProgressBar( None, 0 )
 		GEUtil.RemoveHudProgressBar( None, 1 )
 
-		GERules.UnlockRound();
-		GERules.GetRadar().SetForceRadar( False );
+		GERules.UnlockRound()
+		GERules.GetRadar().SetForceRadar( False )
 
 		self.game_bounty_orig = None
 		self.game_bounty = None
@@ -277,7 +270,7 @@ class YOLT( GEScenario ):
 	def yolt_IsInPlay( self, player ):
 		try:
 			return player.GetTeamNumber() != Glb.TEAM_SPECTATOR 	\
-					and self.pltracker[player][TR_SPAWNED] 	\
+					and self.pltracker[player][TR_SPAWNED] 			\
 					and not self.pltracker[player][TR_ELIMINATED]
 		except KeyError:
 			pass

@@ -21,8 +21,15 @@ from GEGlobal import EventHooks
 
 class GEWarmUp:
 	CHAN_TIMER = 4
+
 	COLOR_TIMER = GEUtil.CColor( 255, 255, 255, 255 )
 	COLOR_GETREADY = GEUtil.CColor( 255, 255, 255 )
+
+	# These are in seconds
+	PREROUND_END_DELAY = 3.5
+	NOTICE_INTERVAL_LONG = 15.0
+	NOTICE_INTERVAL_SHORT = 5.0
+	NOTICE_INTERVAL_TINY = 0.9
 
 	def __init__( self, parent ):
 		if not hasattr( parent, 'RegisterEventHook' ):
@@ -31,7 +38,7 @@ class GEWarmUp:
 		self.Reset()
 
 		self.preRoundEndDelay = 3.5
-		self.noticeInterval = 1.0
+		self.noticeInterval = 0.9
 
 		parent.RegisterEventHook( EventHooks.GP_THINK, self.Think )
 
@@ -70,10 +77,8 @@ class GEWarmUp:
 	def EndWarmup( self ):
 		self.Reset()
 		self.endRoundTime = GEUtil.GetTime() + self.preRoundEndDelay
-		# Clear the timer's message
-		GEUtil.HudMessage( None, "", -1, -1, self.COLOR_TIMER, 0.5, self.CHAN_TIMER )
 		# Tell us to get ready
-		GEUtil.HudMessage( None, "#GES_GP_GETREADY", -1, -1, self.COLOR_GETREADY, self.preRoundEndDelay + 3.0 )
+		GEUtil.HudMessage( None, "#GES_GP_GETREADY", -1, -1, self.COLOR_GETREADY, self.preRoundEndDelay + 3.0, self.CHAN_TIMER )
 
 	def Think( self ):
 		# Don't worry about this if we are done
