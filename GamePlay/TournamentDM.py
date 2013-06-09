@@ -149,7 +149,7 @@ class TournamentDM( GEScenario ):
 			self.WaitingForPlayers = False
 			if not self.warmupTimer.HadWarmup():
 				self.warmupTimer.StartWarmup( int( GEUtil.GetCVarValue( "tdm_warmuptime" ) ), True )
-				if self.warmupTimer.inWarmUp:
+				if self.warmupTimer.IsInWarmup():
 					GEUtil.EmitGameplayEvent( "tdm_startwarmup" )
 			else:
 				GERules.EndRound( False )

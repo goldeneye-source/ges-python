@@ -251,8 +251,6 @@ class Arsenal( GEScenario ):
 			self.WaitingForPlayers = False
 			if not self.warmupTimer.HadWarmup():
 				self.warmupTimer.StartWarmup( int( GEUtil.GetCVarValue( "ar_warmuptime" ) ), True )
-				if self.warmupTimer.inWarmUp:
-					GEUtil.EmitGameplayEvent( "ar_startwarmup" )
 			else:
 				GERules.EndRound( False )
 

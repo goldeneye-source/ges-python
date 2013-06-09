@@ -16,53 +16,52 @@
 # along with GoldenEye: Source's Python Library.
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
-import GEUtil, GEMPGameRules
+import GEUtil, GEMPGameRules as GERules, GEGlobal as Glb
 from GEGlobal import EventHooks
 
+# These are in seconds
+PREROUND_END_DELAY = 3.5
+
+NOTICE_INTERVAL_LONG = 15.0
+NOTICE_INTERVAL_SHORT = 10.0
+NOTICE_INTERVAL_TINY = 0.9
+
+CHAN_TIMER = 4
+
+COLOR_TIMER = GEUtil.CColor( 255, 255, 255, 255 )
+COLOR_GETREADY = GEUtil.CColor( 255, 255, 255 )
+
 class GEWarmUp:
-	CHAN_TIMER = 4
-
-	COLOR_TIMER = GEUtil.CColor( 255, 255, 255, 255 )
-	COLOR_GETREADY = GEUtil.CColor( 255, 255, 255 )
-
-	# These are in seconds
-	PREROUND_END_DELAY = 3.5
-	NOTICE_INTERVAL_LONG = 15.0
-	NOTICE_INTERVAL_SHORT = 5.0
-	NOTICE_INTERVAL_TINY = 0.9
-
 	def __init__( self, parent ):
 		if not hasattr( parent, 'RegisterEventHook' ):
 			raise AttributeError( "Parent must be a Gameplay Scenario type!" )
 
+		parent.RegisterEventHook( EventHooks.GP_THINK, self.Think )
+		parent.RegisterEventHook( EventHooks.GP_PLAYERCONNECT, self.PlayerConnect )
 		self.Reset()
 
-		self.preRoundEndDelay = 3.5
-		self.noticeInterval = 0.9
-
-		parent.RegisterEventHook( EventHooks.GP_THINK, self.Think )
-
 	def Reset( self ):
-		self.hadWarmUp = False
-		self.inWarmUp = False
-		self.endRoundTime = 0
-		self.endWarmUpTime = 0
-		self.nextNoticeTime = 0
+		self.had_warmup = False
+		self.in_warmup = False
+		self.time_endround = 0
+		self.time_endwarmup = 0
+		self.time_nextnotice = 0
 
 	def IsInWarmup( self ):
-		if self.endRoundTime:
+		if self.time_endround:
 			return True
-		return self.inWarmUp
+		return self.in_warmup
 
 	def HadWarmup( self ):
-		return self.hadWarmUp
+		return self.had_warmup
 
 	def StartWarmup( self, duration=30.0, endround_if_no_warmup=False ):
 		now = GEUtil.GetTime()
 		if duration > 0:
-			self.endWarmUpTime = now + duration
-			self.nextNoticeTime = now
-			self.inWarmUp = True
+			self.time_endwarmup = now + duration
+			self.time_nextnotice = duration
+			self.in_warmup = True
+			GEUtil.InitHudProgressBar( None, CHAN_TIMER, "#GES_GP_INWARMUP", Glb.HUDPB_TITLEONLY, x=-1, y=.02 )
 			GEUtil.EmitGameplayEvent( "ges_startwarmup" )
 			return True
 		elif endround_if_no_warmup:
@@ -70,39 +69,56 @@ class GEWarmUp:
 			return True
 		else:
 			# Just pass through...
-			self.hadWarmUp = True
-			self.inWarmUp = False
+			self.had_warmup = True
+			self.in_warmup = False
 			return False
 
 	def EndWarmup( self ):
 		self.Reset()
-		self.endRoundTime = GEUtil.GetTime() + self.preRoundEndDelay
+		self.time_endround = GEUtil.GetTime() + PREROUND_END_DELAY
 		# Tell us to get ready
-		GEUtil.HudMessage( None, "#GES_GP_GETREADY", -1, -1, self.COLOR_GETREADY, self.preRoundEndDelay + 3.0, self.CHAN_TIMER )
+		GEUtil.RemoveHudProgressBar( None, CHAN_TIMER )
+		GEUtil.HudMessage( None, "#GES_GP_GETREADY", -1, -1, COLOR_GETREADY, PREROUND_END_DELAY + 3.0, CHAN_TIMER )
+
+	def _CalcNextNotice( self, time_left ):
+		if time_left > 30:
+			# Round to the next 5-divisible number
+			return max( 5.0 * round( ( time_left - NOTICE_INTERVAL_LONG ) / 5.0 ), 30.0 )
+		elif time_left <= 30 and time_left > 10:
+			# Show the notice every 10 seconds after we hit 30 seconds
+			return max( time_left - NOTICE_INTERVAL_SHORT, 10.0 )
+		else:
+			# Show every second after that
+			return max( time_left - NOTICE_INTERVAL_TINY, 0 )
+
+	def PlayerConnect( self, player ):
+		if self.in_warmup:
+			GEUtil.InitHudProgressBar( None, CHAN_TIMER, "#GES_GP_INWARMUP", Glb.HUDPB_TITLEONLY, x=-1, y=.02 )
 
 	def Think( self ):
 		# Don't worry about this if we are done
-		if self.hadWarmUp:
+		if self.had_warmup:
 			return
 
 		now = GEUtil.GetTime()
 
-		if self.inWarmUp and now < self.endWarmUpTime:
-			if now >= self.nextNoticeTime:
+		if self.in_warmup and now < self.time_endwarmup:
+			time_left = self.time_endwarmup - now
+			if time_left <= self.time_nextnotice:
 				# Let everyone know how much time is left
-				remains = self.endWarmUpTime - now
-				GEUtil.HudMessage( None, "#GES_GP_WARMUP\r%0.0f sec" % remains, -1, 0.62, self.COLOR_TIMER, 2.0, self.CHAN_TIMER )
-				self.nextNoticeTime = now + self.noticeInterval
+				GEUtil.HudMessage( None, "#GES_GP_WARMUP\r%0.0f sec" % time_left, -1, 0.75, COLOR_TIMER, 3.0, CHAN_TIMER )
+				# Calculate the time to the next notice
+				self.time_nextnotice = self._CalcNextNotice( time_left )
 
-		elif self.inWarmUp and now >= self.endWarmUpTime:
+		elif self.in_warmup and now >= self.time_endwarmup:
 			# Notify players that warmup is now over
 			self.EndWarmup()
 
-		elif self.endRoundTime and now >= self.endRoundTime:
+		elif self.time_endround and now >= self.time_endround:
 			# This completes our warmup
-			self.endRoundTime = 0
-			self.hadWarmUp = True
-			GEMPGameRules.EndRound( False )
+			self.time_endround = 0
+			self.had_warmup = True
+			GERules.EndRound( False )
 			GEUtil.EmitGameplayEvent( "ges_endwarmup" )
 
 
