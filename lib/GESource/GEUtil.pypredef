@@ -146,8 +146,10 @@ class TempEnt:
 def CreateTempEnt( type, origin=Vector, **kwargs ):
 	'''
 	Create a Temporary Entity of the given type at the given origin and extended args.
-	Origin is required for all temp ents. BEAM requires origin and end. 
-	BEAM_FOLLOW requires origin and entity.
+	'origin' is required for all temp ents. BEAM also requires 'end', and BEAM_FOLLOW 
+	requires 'entity'.
+	
+	List of acceptable kwargs entries:
 	
 	- RING: origin, delay, radius_start, radius_end, framerate, duration, width, amplitude, color, speed
 	- BEAM: origin, end, delay, framerate, duration, width, width_end, fade_length, amplitude, color, speed
@@ -156,8 +158,14 @@ def CreateTempEnt( type, origin=Vector, **kwargs ):
 	- SMOKE: origin, delay, size, framerate
 	- SPARK: origin, delay, magnitude, direction, trail_length
 	
-	@type type: TE
-	@type origin: GEUtil.Vector (required!)
+	Example Usage:
+		origin = player.GetEyePosition()
+		GEUtil.CreateTempEnt( TempEnt.RING, origin, framerate = 15, duration = 0.6, 
+			speed = 0, width=3.0, amplitude=0.00, radius_start=128.0, 
+			radius_end=128.0, color=RingColor )
+	
+	@type type: entry from GEUtil.TempEnt
+	@type origin: GEUtil.Vector
 	'''
 
 def EmitGameplayEvent( name, value1="", value2="", value3="", value4="", send_to_clients=False ):
@@ -309,15 +317,16 @@ def ParticleEffectBeam( player, attachment, end, effect ):
 
 def InitHudProgressBar( player_or_team, index, title=None, flags=0, max_value=0, x=-1, y=-1, wide=120, tall=60, color=GEUtil.Color(255,255,255,255), curr_value=0 ):
 	'''
-	Initiate a progress bar to show on players' screens. There can be a maximum of 8
-	progress bars for each player. Use index to indicate which bar you are initializing.
+	Initiate a progress bar to show on a player's or teams' screen. There are a maximum of 8
+	progress bars for each player. Use the index to indicate which bar you are initializing.
 	Initializing with the same index as a previous bar completely overwrites the previous
-	one.
+	one. Set 'curr_value' to preventing having to call UpdateHudProgressBar directly after
+	this function.
 	
-	Use ConfigHudProgressBar to simply update the color or title, it uses significantly
-	less network bandwidth than this function.
+	Use UpdateHudProgressBar to update the value, color, or title, it uses  significantly 
+	less network bandwidth than this function and prevents flickering.
 	
-	Set player_or_team to None to send to all players
+	Set player_or_team to None to send to all players.
 	
 	@type player_or_team: GEPlayer.CGEPlayer or Team Number
 	@type index: int
@@ -341,6 +350,8 @@ def UpdateHudProgressBar( player_or_team, index, value=None, title=None, color=N
 	@type player_or_team: GEPlayer.CGEPlayer or Team Number
 	@type index: int
 	@type value: float
+	@type title: str
+	@type color: GEUtil.Color
 	'''
 	
 def RemoveHudProgressBar( player_or_team, index ):
