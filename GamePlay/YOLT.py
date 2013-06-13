@@ -175,8 +175,7 @@ class YOLT( GEScenario ):
 		else:
 			# DM bounty is just a number
 			self.game_bounty_orig = GERules.GetNumInRoundPlayers()
-			# We subtract 1 here to account for the local player (prevents "1 / X" at win)
-			GEUtil.InitHudProgressBar( Glb.TEAM_NO_OBS, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, self.game_bounty_orig - 1, -1, 0.02, 0, 10, CLR_DM_BOUNTY )
+			GEUtil.InitHudProgressBar( Glb.TEAM_NO_OBS, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, self.game_bounty_orig, -1, 0.02, 0, 10, CLR_DM_BOUNTY )
 
 		# Copy our origin into the tracker
 		self.game_bounty = self.game_bounty_orig
