@@ -15,7 +15,6 @@ var
 sdist
 develop-eggs
 .installed.cfg
-lib
 lib64
 
 # Installer logs
@@ -31,15 +30,12 @@ nosetests.xml
 
 # Mr Developer
 .mr.developer.cfg
-.project
-.pydevproject
 
 # Custom
 *.bat
 python.log
 gphashes.txt
-.pydevproject
-.project
 pullhashes.py
 GamePlay/LaunchCode.py
 GamePlay/Uplink.py
+*.suo

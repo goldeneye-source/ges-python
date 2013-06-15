@@ -29,7 +29,7 @@ def SetPaths():
 
 	# Append each directory that we want to look in for modules
 	sys.path.append( PY_BASE_DIR )
-	sys.path.append( PY_BASE_DIR + "/lib/pydev" )
+	sys.path.append( PY_BASE_DIR + "/lib/" )
 	sys.path.append( PY_BASE_DIR + "/lib/python2.6" )
 
 def LoadManager( name ):
