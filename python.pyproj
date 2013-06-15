@@ -1,0 +1,79 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>1f73d675-f0f3-4451-bd46-08b6f344f2c3</ProjectGuid>
+    <ProjectHome>
+    </ProjectHome>
+    <StartupFile>__init__.py</StartupFile>
+    <SearchPath>lib\GESource\gesource.zip</SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <InterpreterId>00000000-0000-0000-0000-000000000000</InterpreterId>
+    <InterpreterVersion>
+    </InterpreterVersion>
+    <Name>python</Name>
+    <RootNamespace>python</RootNamespace>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="AiManager.py" />
+    <Compile Include="GamePlayManager.py" />
+    <Compile Include="GESFuncs.py" />
+    <Compile Include="GESInit.py" />
+    <Compile Include="pullhashes.py" />
+    <Compile Include="__init__.py" />
+    <Compile Include="Ai\bot_deathmatch.py" />
+    <Compile Include="Ai\bot_drnoarmor.py" />
+    <Compile Include="Ai\bot_gungame.py" />
+    <Compile Include="Ai\bot_ltk.py" />
+    <Compile Include="Ai\bot_mwgg.py" />
+    <Compile Include="Ai\__init__.py" />
+    <Compile Include="Ai\Schedules\common.py" />
+    <Compile Include="Ai\Schedules\__init__.py" />
+    <Compile Include="Ai\Tasks\common.py" />
+    <Compile Include="Ai\Tasks\__init__.py" />
+    <Compile Include="Ai\Utils\Memory.py" />
+    <Compile Include="Ai\Utils\Weapons.py" />
+    <Compile Include="Ai\Utils\__init__.py" />
+    <Compile Include="GamePlay\Arsenal.py" />
+    <Compile Include="GamePlay\CaptureTheKey.py" />
+    <Compile Include="GamePlay\DeathMatch.py" />
+    <Compile Include="GamePlay\DrNoArmor.py" />
+    <Compile Include="GamePlay\GunGame.py" />
+    <Compile Include="GamePlay\KMTest.py" />
+    <Compile Include="GamePlay\LiveAndLetDie.py" />
+    <Compile Include="GamePlay\LivingDaylights.py" />
+    <Compile Include="GamePlay\LTK.py" />
+    <Compile Include="GamePlay\MWGG.py" />
+    <Compile Include="GamePlay\TokenSpawnTest.py" />
+    <Compile Include="GamePlay\TournamentDM.py" />
+    <Compile Include="GamePlay\Uplink.py" />
+    <Compile Include="GamePlay\YOLT.py" />
+    <Compile Include="GamePlay\__init__.py" />
+    <Compile Include="GamePlay\Utils\GEOvertime.py" />
+    <Compile Include="GamePlay\Utils\GEPlayerTracker.py" />
+    <Compile Include="GamePlay\Utils\GETimer.py" />
+    <Compile Include="GamePlay\Utils\GEWarmUp.py" />
+    <Compile Include="GamePlay\Utils\__init__.py" />
+    <Content Include="gphashes.txt" />
+    <Content Include="LICENSE.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Ai" />
+    <Folder Include="Ai\Schedules" />
+    <Folder Include="Ai\Tasks" />
+    <Folder Include="Ai\Utils" />
+    <Folder Include="GamePlay" />
+    <Folder Include="GamePlay\Utils" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.Common.targets" />
+</Project>

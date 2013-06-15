@@ -16,7 +16,7 @@
 # along with GoldenEye: Source's Python Library.
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
-from GamePlay import GEScenario, GEScenarioHelp
+from . import GEScenario, GEScenarioHelp
 from Utils import OppositeTeam, _
 from Utils.GEOvertime import GEOvertime
 from Utils.GETimer import EndRoundCallback, TimerTracker, Timer
