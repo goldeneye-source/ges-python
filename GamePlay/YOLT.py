@@ -27,9 +27,10 @@ USING_API = Glb.API_VERSION_1_1_0
 TR_ELIMINATED = "eliminated"
 TR_SPAWNED = "spawned"
 
-CLR_MI6_BOUNTY = Color( 100, 184, 234, 220 )
-CLR_JANUS_BOUNTY = Color( 206, 43, 43, 255 )
-CLR_DM_BOUNTY = Color( 170, 170, 170, 220 )
+CLR_MI6_BAR = Color( 100, 184, 234, 220 )
+CLR_JANUS_BAR = Color( 206, 43, 43, 255 )
+CLR_DM_BAR = Color( 170, 170, 170, 220 )
+CLR_SHOWDOWN_BAR = Color( 180, 225, 255, 170 )
 
 # For some odd reason, you only live twice...
 class YOLT( GEScenario ):
@@ -39,8 +40,8 @@ class YOLT( GEScenario ):
 		self.pltracker = GEPlayerTracker( self )
 
 		self.game_inWaitTime = False
-		self.game_bounty_orig = None
-		self.game_bounty = None
+		self.game_foes_orig = None
+		self.game_foes = None
 
 	def GetTeamPlay( self ):
 		return Glb.TEAMPLAY_TOGGLE
@@ -71,12 +72,12 @@ class YOLT( GEScenario ):
 
 	def OnPlayerDisconnect( self, player ):
 		if GERules.IsRoundLocked() and self.yolt_IsInPlay( player ):
-			self.yolt_DecreaseBounty( player )
+			self.yolt_DecreaseFoes( player )
 
 	def CanPlayerChangeTeam( self, player, oldTeam, newTeam ):
 		if GERules.IsRoundLocked():
 			if self.yolt_IsInPlay( player ):
-				self.yolt_DecreaseBounty( player )
+				self.yolt_DecreaseFoes( player )
 
 			if oldTeam == Glb.TEAM_SPECTATOR:
 				GEUtil.PopupMessage( player, "#GES_GPH_CANTJOIN_TITLE", "#GES_GPH_CANTJOIN" )
@@ -111,8 +112,8 @@ class YOLT( GEScenario ):
 		GERules.UnlockRound()
 		GERules.GetRadar().SetForceRadar( False )
 
-		self.game_bounty_orig = None
-		self.game_bounty = None
+		self.game_foes_orig = None
+		self.game_foes = None
 
 	def OnPlayerKilled( self, victim, killer, weapon ):
 		# Execute default DM scoring behavior
@@ -132,8 +133,8 @@ class YOLT( GEScenario ):
 			# Tell the victim they are eliminated
 			GEUtil.PopupMessage( victim, "#GES_GPH_ELIMINATED_TITLE", "#GES_GPH_ELIMINATED" )
 
-			# Decrease the bounty, eliminate the victim
-			self.yolt_DecreaseBounty( victim )
+			# Decrease the foes, eliminate the victim
+			self.yolt_DecreaseFoes( victim )
 
 	def OnThink( self ):
 		# If less than 2 players enter "wait mode"
@@ -158,80 +159,82 @@ class YOLT( GEScenario ):
 		player.SetScoreBoardColor( Glb.SB_COLOR_NORMAL )
 		return True
 
-	def yolt_InitBounty( self ):
-		if self.game_bounty_orig:
+	def yolt_InitFoes( self ):
+		if self.game_foes_orig:
 			# We are already init'd
 			return
 
 		if GERules.IsTeamplay():
 			mi6_count = GERules.GetNumInRoundTeamPlayers( Glb.TEAM_MI6 )
 			janus_count = GERules.GetNumInRoundTeamPlayers( Glb.TEAM_JANUS )
-			# Team bounty is a list: [mi6, janus]
-			self.game_bounty_orig = [ mi6_count, janus_count ]
+			# Team foes is a list: [mi6, janus]
+			self.game_foes_orig = [ mi6_count, janus_count ]
 
-			# Display the bounty progress bars (note color and values are swapped since these are "foes")
-			GEUtil.InitHudProgressBar( Glb.TEAM_MI6_NO_OBS, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, janus_count, -1, 0.02, 0, 10, CLR_JANUS_BOUNTY )
-			GEUtil.InitHudProgressBar( Glb.TEAM_JANUS_NO_OBS, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, mi6_count, -1, 0.02, 0, 10, CLR_MI6_BOUNTY )
+			# Display the foes progress bars (note color and values are swapped since these are "foes")
+			GEUtil.InitHudProgressBar( Glb.TEAM_MI6_NO_OBS, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, janus_count, -1, 0.02, 0, 10, CLR_JANUS_BAR )
+			GEUtil.InitHudProgressBar( Glb.TEAM_JANUS_NO_OBS, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, mi6_count, -1, 0.02, 0, 10, CLR_MI6_BAR )
 		else:
-			# DM bounty is just a number
-			self.game_bounty_orig = GERules.GetNumInRoundPlayers()
-			GEUtil.InitHudProgressBar( Glb.TEAM_NO_OBS, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, self.game_bounty_orig, -1, 0.02, 0, 10, CLR_DM_BOUNTY )
+			# DM foes is just a number
+			self.game_foes_orig = GERules.GetNumInRoundPlayers()
+			# Subtract one because we don't count the local player as a "foe"
+			GEUtil.InitHudProgressBar( Glb.TEAM_NO_OBS, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, self.game_foes_orig - 1, -1, 0.02, 0, 10, CLR_DM_BAR )
 
 		# Copy our origin into the tracker
-		self.game_bounty = self.game_bounty_orig
+		self.game_foes = self.game_foes_orig
 
 		# Initialize observer bars
 		self.yolt_InitObserverBars( Glb.TEAM_OBS )
 
-	def yolt_DecreaseBounty( self, victim ):
-		# Init the bounty if needed
-		if not self.game_bounty_orig:
-			self.yolt_InitBounty()
+	def yolt_DecreaseFoes( self, victim ):
+		# Init the foes if needed
+		if not self.game_foes_orig:
+			self.yolt_InitFoes()
 
 		# Mark the victim as eliminated
 		self.pltracker[victim][TR_ELIMINATED] = True
 
 		if GERules.IsTeamplay():
-			# Team bounty is ( mi6, janus )
+			# Team foes is ( mi6, janus )
 			if victim.GetTeamNumber() == Glb.TEAM_MI6:
-				self.game_bounty[0] -= 1
+				self.game_foes[0] -= 1
 			else:
-				self.game_bounty[1] -= 1
+				self.game_foes[1] -= 1
 
 			# Update non-observers (note the reversal of scores)
-			GEUtil.UpdateHudProgressBar( Glb.TEAM_MI6_NO_OBS, 0, self.game_bounty[1] )
-			GEUtil.UpdateHudProgressBar( Glb.TEAM_JANUS_NO_OBS, 0, self.game_bounty[0] )
+			GEUtil.UpdateHudProgressBar( Glb.TEAM_MI6_NO_OBS, 0, self.game_foes[1] )
+			GEUtil.UpdateHudProgressBar( Glb.TEAM_JANUS_NO_OBS, 0, self.game_foes[0] )
 
 			# Update observers
-			GEUtil.UpdateHudProgressBar( Glb.TEAM_OBS, 0, self.game_bounty[0] )
-			GEUtil.UpdateHudProgressBar( Glb.TEAM_OBS, 1, self.game_bounty[1] )
+			GEUtil.UpdateHudProgressBar( Glb.TEAM_OBS, 0, self.game_foes[0] )
+			GEUtil.UpdateHudProgressBar( Glb.TEAM_OBS, 1, self.game_foes[1] )
 		else:
-			# DM bounty is just a number
-			self.game_bounty -= 1
+			# DM foes is just a number
+			self.game_foes -= 1
 			# We subtract 1 here to account for the local player (prevents "1 / X" at win)
-			GEUtil.UpdateHudProgressBar( Glb.TEAM_NO_OBS, 0, self.game_bounty - 1 )
+			GEUtil.UpdateHudProgressBar( Glb.TEAM_NO_OBS, 0, self.game_foes - 1 )
 			# Update observers, we don't subtract 1 anymore
-			GEUtil.UpdateHudProgressBar( Glb.TEAM_OBS, 0, self.game_bounty )
+			GEUtil.UpdateHudProgressBar( Glb.TEAM_OBS, 0, self.game_foes )
 
 		# Check if we have a winner
 		self.yolt_CheckWin()
 
 	def yolt_CheckWin( self ):
-		if not self.game_bounty:
+		if not self.game_foes:
 			return
 
 		if GERules.IsTeamplay():
 			# Default no winner
 			winner = None
-			if self.game_bounty[0] <= 0:
-				# MI6 has no bounty, Janus won
+			if self.game_foes[0] <= 0:
+				# MI6 has no foes, Janus won
 				winner = GERules.GetTeam( Glb.TEAM_JANUS )
-			elif self.game_bounty[1] <= 0:
-				# Janus has no bounty, MI6 won
+			elif self.game_foes[1] <= 0:
+				# Janus has no foes, MI6 won
 				winner = GERules.GetTeam( Glb.TEAM_MI6 )
-			elif self.game_bounty[0] == 1 and self.game_bounty[1] == 1:
+			elif self.yolt_IsShowdown():
 				# When we are down to 1 player on each team, force show the radar
 				GERules.GetRadar().SetForceRadar( True )
+				self.yolt_InitShowdownBars()
 
 			if winner:
 				winner.AddMatchScore( 5 )
@@ -239,7 +242,7 @@ class YOLT( GEScenario ):
 				GERules.EndRound()
 		else:
 			# DM uses a number
-			if self.game_bounty <= 1:
+			if self.game_foes <= 1:
 				# There is only 1 player left, find who that is
 				for player in GetPlayers():
 					if self.yolt_IsInPlay( player ):
@@ -247,13 +250,17 @@ class YOLT( GEScenario ):
 						break
 				# Round is over
 				GERules.EndRound()
-			elif self.game_bounty == 2:
+			elif self.yolt_IsShowdown():
 				GERules.GetRadar().SetForceRadar( True )
+				self.yolt_InitShowdownBars()
 
 	def yolt_InitObserverBars( self, player ):
-		# We don't init if there is no bounty
-		if not self.game_bounty:
+		# We don't init if there is no foes
+		if not self.game_foes:
 			return
+
+		if self.yolt_IsShowdown():
+			self.yolt_InitShowdownBars()
 
 		# Remove latent bars
 		GEUtil.RemoveHudProgressBar( player, 0 )
@@ -261,10 +268,22 @@ class YOLT( GEScenario ):
 
 		# Initialize and update
 		if GERules.IsTeamplay():
-			GEUtil.InitHudProgressBar( player, 0, "##TEAM_MI6: ", Glb.HUDPB_SHOWVALUE, self.game_bounty_orig[0], 0.35, 0.14, 0, 10, CLR_MI6_BOUNTY, self.game_bounty[0] )
-			GEUtil.InitHudProgressBar( player, 1, "##TEAM_JANUS: ", Glb.HUDPB_SHOWVALUE, self.game_bounty_orig[1], 0.5, 0.14, 0, 10, CLR_JANUS_BOUNTY, self.game_bounty[1] )
+			GEUtil.InitHudProgressBar( player, 0, "##TEAM_MI6: ", Glb.HUDPB_SHOWVALUE, self.game_foes_orig[0], 0.35, 0.14, 0, 10, CLR_MI6_BAR, self.game_foes[0] )
+			GEUtil.InitHudProgressBar( player, 1, "##TEAM_JANUS: ", Glb.HUDPB_SHOWVALUE, self.game_foes_orig[1], 0.5, 0.14, 0, 10, CLR_JANUS_BAR, self.game_foes[1] )
 		else:
-			GEUtil.InitHudProgressBar( player, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, self.game_bounty_orig, -1, 0.14, 0, 10, CLR_DM_BOUNTY, self.game_bounty )
+			GEUtil.InitHudProgressBar( player, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, self.game_foes_orig, -1, 0.14, 0, 10, CLR_DM_BAR, self.game_foes )
+
+	def yolt_InitShowdownBars( self ):
+		# Remove latent bars
+		GEUtil.RemoveHudProgressBar( None, 0 )
+		GEUtil.RemoveHudProgressBar( None, 1 )
+
+		# Prop up nice showdown bars for everyone
+		GEUtil.InitHudProgressBar( Glb.TEAM_NO_OBS, 0, "#GES_GP_SHOWDOWN", Glb.HUDPB_TITLEONLY, y=0.02, color=CLR_SHOWDOWN_BAR )
+		GEUtil.InitHudProgressBar( Glb.TEAM_OBS, 0, "#GES_GP_SHOWDOWN", Glb.HUDPB_TITLEONLY, y=0.14, color=CLR_SHOWDOWN_BAR )
+
+	def yolt_IsShowdown( self ):
+		return (self.game_foes[0] == 1 and self.game_foes[1] == 1) if GERules.IsTeamplay() else self.game_foes == 2
 
 	def yolt_IsInPlay( self, player ):
 		try:
