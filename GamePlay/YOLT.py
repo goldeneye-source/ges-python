@@ -261,6 +261,7 @@ class YOLT( GEScenario ):
 
 		if self.yolt_IsShowdown():
 			self.yolt_InitShowdownBars()
+			return
 
 		# Remove latent bars
 		GEUtil.RemoveHudProgressBar( player, 0 )
