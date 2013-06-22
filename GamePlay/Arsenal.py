@@ -166,9 +166,7 @@ class Arsenal( GEScenario ):
 				self.pltracker[player][TR_ROUND] = False
 
 		self.GivePlayerWeapons( player )
-
-		if player.GetTeamNumber() != GEGlobal.TEAM_SPECTATOR:
-			self.pltracker[player][TR_SPAWNED] = True
+		self.pltracker[player][TR_SPAWNED] = True
 
 		if player.IsInitialSpawn():
 			GEUtil.PopupMessage( player, "#GES_GP_ARSENAL_NAME", "#GES_GPH_AR_GOAL" )
