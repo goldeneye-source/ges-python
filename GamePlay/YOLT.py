@@ -25,6 +25,7 @@ import GEUtil, GEMPGameRules as GERules, GEGlobal as Glb
 USING_API = Glb.API_VERSION_1_1_0
 
 TR_ELIMINATED = "eliminated"
+TR_WASINPLAY = "wasinplay"
 TR_SPAWNED = "spawned"
 
 CLR_MI6_BAR = Color( 100, 184, 234, 220 )
@@ -69,6 +70,7 @@ class YOLT( GEScenario ):
 	def OnPlayerConnect( self, player ):
 		self.pltracker[player][TR_SPAWNED] = False
 		self.pltracker[player][TR_ELIMINATED] = True
+		self.pltracker[player][TR_WASINPLAY] = False
 
 	def OnPlayerDisconnect( self, player ):
 		if GERules.IsRoundLocked() and self.yolt_IsInPlay( player ):
@@ -82,6 +84,7 @@ class YOLT( GEScenario ):
 			if oldTeam == Glb.TEAM_SPECTATOR:
 				GEUtil.PopupMessage( player, "#GES_GPH_CANTJOIN_TITLE", "#GES_GPH_CANTJOIN" )
 			else:
+				self.pltracker[player][TR_WASINPLAY] = True
 				GEUtil.PopupMessage( player, "#GES_GPH_ELIMINATED_TITLE", "#GES_GPH_ELIMINATED" )
 
 		# Changing teams will automatically eliminate you
@@ -112,6 +115,8 @@ class YOLT( GEScenario ):
 		GERules.UnlockRound()
 		GERules.GetRadar().SetForceRadar( False )
 
+		self.pltracker.SetValueAll( TR_WASINPLAY, False )
+
 		self.game_foes_orig = None
 		self.game_foes = None
 
@@ -132,6 +137,8 @@ class YOLT( GEScenario ):
 			GEUtil.EmitGameplayEvent( "yolt_eliminated", str( victim.GetUserID() ), str( killer.GetUserID() if killer else -1 ) )
 			# Tell the victim they are eliminated
 			GEUtil.PopupMessage( victim, "#GES_GPH_ELIMINATED_TITLE", "#GES_GPH_ELIMINATED" )
+			# Mark as eliminated by death
+			self.pltracker[victim][TR_WASINPLAY] = True
 
 			# Decrease the foes, eliminate the victim
 			self.yolt_DecreaseFoes( victim )
@@ -255,7 +262,7 @@ class YOLT( GEScenario ):
 				self.yolt_InitShowdownBars()
 
 	def yolt_InitObserverBars( self, player ):
-		# We don't init if there is no foes
+		# We don't init if there are no foes
 		if not self.game_foes:
 			return
 
@@ -272,7 +279,12 @@ class YOLT( GEScenario ):
 			GEUtil.InitHudProgressBar( player, 0, "##TEAM_MI6: ", Glb.HUDPB_SHOWVALUE, self.game_foes_orig[0], 0.35, 0.14, 0, 10, CLR_MI6_BAR, self.game_foes[0] )
 			GEUtil.InitHudProgressBar( player, 1, "##TEAM_JANUS: ", Glb.HUDPB_SHOWVALUE, self.game_foes_orig[1], 0.5, 0.14, 0, 10, CLR_JANUS_BAR, self.game_foes[1] )
 		else:
-			GEUtil.InitHudProgressBar( player, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, self.game_foes_orig, -1, 0.14, 0, 10, CLR_DM_BAR, self.game_foes )
+			foes_orig = self.game_foes_orig
+			if self.pltracker.GetValue( player, TR_WASINPLAY, False ):
+				# Previously in-game players see a different original foes count
+				foes_orig -= 1
+			
+			GEUtil.InitHudProgressBar( player, 0, "#GES_GP_FOES", Glb.HUDPB_SHOWVALUE, foes_orig, -1, 0.14, 0, 10, CLR_DM_BAR, self.game_foes )
 
 	def yolt_InitShowdownBars( self ):
 		# Remove latent bars
