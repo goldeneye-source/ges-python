@@ -29,7 +29,6 @@
     <Compile Include="GamePlayManager.py" />
     <Compile Include="GESFuncs.py" />
     <Compile Include="GESInit.py" />
-    <Compile Include="pullhashes.py" />
     <Compile Include="__init__.py" />
     <Compile Include="Ai\bot_deathmatch.py" />
     <Compile Include="Ai\bot_drnoarmor.py" />
@@ -56,7 +55,6 @@
     <Compile Include="GamePlay\MWGG.py" />
     <Compile Include="GamePlay\TokenSpawnTest.py" />
     <Compile Include="GamePlay\TournamentDM.py" />
-    <Compile Include="GamePlay\Uplink.py" />
     <Compile Include="GamePlay\YOLT.py" />
     <Compile Include="GamePlay\__init__.py" />
     <Compile Include="GamePlay\Utils\GEOvertime.py" />
