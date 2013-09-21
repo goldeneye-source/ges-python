@@ -45,7 +45,7 @@ TR_SPAWNED = "spawned"
 
 class Arsenal( GEScenario ):
 	def __init__( self ):
-		super( Arsenal, self ).__init__()
+		GEScenario.__init__( self )
 
 		self.WaitingForPlayers = True
 		self.RoundNumber = 0
@@ -57,11 +57,6 @@ class Arsenal( GEScenario ):
 		# CVar Holders
 		self.RoundLimit = 3
 		self.RandomWeapons = False
-
-	def Cleanup( self ):
-		GEScenario.Cleanup( self )
-		self.warmupTimer = None
-		self.pltracker = None
 
 	def GetPrintName( self ):
 		return "#GES_GP_ARSENAL_NAME"
@@ -94,6 +89,11 @@ class Arsenal( GEScenario ):
 		# Restore the default weapon list
 		if weaponList != weaponListCopy:
 			weaponList = list( weaponListCopy )
+
+	def OnUnloadGamePlay(self):
+		GEScenario.OnUnloadGamePlay( self )
+		self.warmupTimer = None
+		self.pltracker = None
 
 	def OnCVarChanged( self, name, oldvalue, newvalue ):
 		global weaponList

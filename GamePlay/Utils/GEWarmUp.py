@@ -36,16 +36,11 @@ class GEWarmUp:
 		if not hasattr( parent, 'RegisterEventHook' ):
 			raise AttributeError( "Parent must be a Gameplay Scenario type!" )
 
-		parent.RegisterEventHook( EventHooks.GP_THINK, self.Think )
-		parent.RegisterEventHook( EventHooks.GP_PLAYERCONNECT, self.PlayerConnect )
-		self.Reset()
+		parent.RegisterEventHook( EventHooks.GP_THINK, self._think )
+		parent.RegisterEventHook( EventHooks.GP_PLAYERCONNECT, self._player_connect )
 
-	def Reset( self ):
-		self.had_warmup = False
-		self.in_warmup = False
-		self.time_endround = 0
-		self.time_endwarmup = 0
-		self.time_nextnotice = 0
+		self.keep_weaponset = False
+		self.Reset()
 
 	def IsInWarmup( self ):
 		if self.time_endround:
@@ -55,16 +50,18 @@ class GEWarmUp:
 	def HadWarmup( self ):
 		return self.had_warmup
 
-	def StartWarmup( self, duration=30.0, endround_if_no_warmup=False ):
+	def StartWarmup( self, duration=30.0, endround_if_no_warmup=False, keep_weaponset=False ):
 		now = GEUtil.GetTime()
 		if duration > 0:
 			self.time_endwarmup = now + duration
 			self.time_nextnotice = duration
+			self.keep_weaponset = keep_weaponset
 			self.in_warmup = True
 			GEUtil.InitHudProgressBar( None, CHAN_TIMER, "#GES_GP_INWARMUP", Glb.HUDPB_TITLEONLY, x=-1, y=.02 )
 			GEUtil.EmitGameplayEvent( "ges_startwarmup" )
 			return True
 		elif endround_if_no_warmup:
+			self.keep_weaponset = keep_weaponset
 			self.EndWarmup()
 			return True
 		else:
@@ -80,7 +77,21 @@ class GEWarmUp:
 		GEUtil.RemoveHudProgressBar( None, CHAN_TIMER )
 		GEUtil.HudMessage( None, "#GES_GP_GETREADY", -1, -1, COLOR_GETREADY, PREROUND_END_DELAY + 3.0, CHAN_TIMER )
 
-	def _CalcNextNotice( self, time_left ):
+	def SetKeepWeaponset( self, state ):
+		self.keep_weaponset = state
+
+	def Reset( self ):
+		self.had_warmup = False
+		self.in_warmup = False
+		self.time_endround = 0
+		self.time_endwarmup = 0
+		self.time_nextnotice = 0
+
+	def _player_connect( self, player ):
+		if self.in_warmup:
+			GEUtil.InitHudProgressBar( None, CHAN_TIMER, "#GES_GP_INWARMUP", Glb.HUDPB_TITLEONLY, x=-1, y=.02 )
+
+	def _calc_next_notice( self, time_left ):
 		if time_left > 30:
 			# Round to the next 5-divisible number
 			return max( 5.0 * round( ( time_left - NOTICE_INTERVAL_LONG ) / 5.0 ), 30.0 )
@@ -91,11 +102,7 @@ class GEWarmUp:
 			# Show every second after that
 			return max( time_left - NOTICE_INTERVAL_TINY, 0 )
 
-	def PlayerConnect( self, player ):
-		if self.in_warmup:
-			GEUtil.InitHudProgressBar( None, CHAN_TIMER, "#GES_GP_INWARMUP", Glb.HUDPB_TITLEONLY, x=-1, y=.02 )
-
-	def Think( self ):
+	def _think( self ):
 		# Don't worry about this if we are done
 		if self.had_warmup:
 			return
@@ -108,7 +115,7 @@ class GEWarmUp:
 				# Let everyone know how much time is left
 				GEUtil.HudMessage( None, "#GES_GP_WARMUP\r%0.0f sec" % time_left, -1, 0.75, COLOR_TIMER, 3.0, CHAN_TIMER )
 				# Calculate the time to the next notice
-				self.time_nextnotice = self._CalcNextNotice( time_left )
+				self.time_nextnotice = self._calc_next_notice( time_left )
 
 		elif self.in_warmup and now >= self.time_endwarmup:
 			# Notify players that warmup is now over
@@ -118,8 +125,5 @@ class GEWarmUp:
 			# This completes our warmup
 			self.time_endround = 0
 			self.had_warmup = True
-			GERules.EndRound( False )
+			GERules.EndRound( False, self.keep_weaponset )
 			GEUtil.EmitGameplayEvent( "ges_endwarmup" )
-
-
-

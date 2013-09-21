@@ -47,10 +47,6 @@ class YOLT( GEScenario ):
 	def GetTeamPlay( self ):
 		return Glb.TEAMPLAY_TOGGLE
 
-	def Cleanup( self ):
-		GEScenario.Cleanup( self )
-		self.pltracker = None
-
 	def GetPrintName( self ):
 		return "#GES_GP_YOLT_NAME"
 
@@ -66,6 +62,10 @@ class YOLT( GEScenario ):
 	def OnLoadGamePlay( self ):
 		if GERules.GetNumActivePlayers() < 2:
 			self.game_inWaitTime = True
+
+	def OnUnloadGamePlay( self ):
+		GEScenario.OnUnloadGamePlay( self )
+		self.pltracker = None
 
 	def OnPlayerConnect( self, player ):
 		self.pltracker[player][TR_SPAWNED] = False

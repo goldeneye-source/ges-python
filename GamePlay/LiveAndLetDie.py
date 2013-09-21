@@ -65,10 +65,6 @@ class LiveAndLetDie( GEScenario ):
 		self.pltracker = GEPlayerTracker( self )
 		self.timer = TimerTracker( self )
 
-	def Cleanup( self ):
-		super( LiveAndLetDie, self ).Cleanup()
-		self.pltracker = None
-
 	def GetGameDescription( self ):
 		return "Live and Let Die"
 
@@ -114,6 +110,10 @@ class LiveAndLetDie( GEScenario ):
 		GEUtil.PrecacheParticleEffect( "ge_baron_teleport" )
 
 		GEMPGameRules.SetExcludedCharacters( "samedi" )
+
+	def OnUnloadGamePlay( self ):
+		GEScenario.OnUnloadGamePlay( self )
+		self.pltracker = None
 
 	def OnCVarChanged( self, cvar, previous, current ):
 		if cvar == self.CVAR_BLOODLUST:

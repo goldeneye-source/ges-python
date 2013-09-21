@@ -19,7 +19,7 @@
 from GamePlay import GEScenario, GEScenarioHelp
 from Utils import GetPlayers
 from Utils.GEPlayerTracker import GEPlayerTracker
-from GEUtil import Color, TraceOpt
+from GEUtil import Color, TraceOpt, TempEnt as TE
 import GEPlayer, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 import random
 
@@ -44,10 +44,6 @@ class TokenSpawnTest( GEScenario ):
 
 		self.EndRound = False
 		self.EndMatch = True
-
-	def Cleanup( self ):
-		GEScenario.Cleanup( self )
-		self.pltracker = None
 
 	def GetPrintName( self ):
 		return "Testing"
@@ -79,12 +75,16 @@ class TokenSpawnTest( GEScenario ):
 		tokenmgr.SetupCaptureArea( "cap1", 	limit=self.token_count, location=Glb.SPAWN_CAPAREA,
 									rqd_token=self.TOKEN1, spread=1000, glow_color=Color( 0, 255, 0, 120 ) )
 
-		tokenmgr.SetupCaptureArea( "cap2", limit=1, location=Glb.SPAWN_CAPAREA, spread=600 )
+		tokenmgr.SetupCaptureArea( "cap2", limit=1, location=Glb.SPAWN_CAPAREA, spread=600, radius=120. )
 
 		GEUtil.AddDownloadable( "models\\weapons\\ammocrate.mdl" )
 
 		self.EndRound = False
 		self.EndMatch = True
+
+	def OnUnloadGamePlay( self ):
+		GEScenario.OnUnloadGamePlay( self )
+		self.pltracker = None
 
 	def OnRoundBegin( self ):
 		self.token_count = 0
@@ -135,7 +135,7 @@ class TokenSpawnTest( GEScenario ):
 			if weap and GERules.GetTokenMgr().IsValidToken( weap.GetClassname() ):
 				GERules.GetTokenMgr().TransferToken( weap, None )
 		elif text == "!te":
-			GEUtil.CreateTempEnt( "ring", origin=player.GetAbsOrigin(), radius_start=110, radius_end=130,
+			GEUtil.CreateTempEnt( TE.RING, origin=player.GetAbsOrigin(), radius_start=110, radius_end=130,
 								width=3, color=Color( 255, 0, 0, 120 ), framerate=10, amplitude=0.2 )
 		elif text == "!dump":
 			for plr in GetPlayers():
@@ -163,7 +163,7 @@ class TokenSpawnTest( GEScenario ):
 		if self.EndRound:
 			GEUtil.HudMessage( None, "Round End Allowed", -1, -1, Color( 255, 255, 255, 255 ), 1.0, 0 )
 		else:
-			GEUtil.HudMessage( None, "Round End Blocked", -1, -1, Color( 255, 255, 255, 255 ), 1.0, 0 )
+			GEUtil.HudMessage( None, "Round End Blocked at %.1f" % GEUtil.GetTime(), -1, -1, Color( 255, 255, 255, 255 ), 1.0, 0 )
 
 		return self.EndRound
 
@@ -171,7 +171,7 @@ class TokenSpawnTest( GEScenario ):
 		if self.EndMatch:
 			GEUtil.HudMessage( None, "Match End Allowed", -1, 0.6, Color( 255, 255, 255, 255 ), 1.0, 1 )
 		else:
-			GEUtil.HudMessage( None, "Match End Blocked", -1, 0.6, Color( 255, 255, 255, 255 ), 1.0, 1 )
+			GEUtil.HudMessage( None, "Match End Blocked at %.1f" % GEUtil.GetTime(), -1, 0.6, Color( 255, 255, 255, 255 ), 1.0, 1 )
 
 		return self.EndMatch
 
@@ -220,6 +220,8 @@ class TokenSpawnTest( GEScenario ):
 	# ---------------------- #
 	def OnCaptureAreaSpawned( self, capture ):
 		GERules.GetRadar().AddRadarContact( capture, Glb.RADAR_TYPE_OBJECTIVE, True, "sprites/hud/radar/capture_point", Color( 255, 255, 255, 255 ) )
+		if capture.GetGroupName() == "cap2":
+			GERules.GetRadar().SetupObjective( capture, color=Color( 0, 255, 0, 120 ) )
 
 	def OnCaptureAreaRemoved( self, area ):
 		GERules.GetRadar().DropRadarContact( area )
@@ -227,6 +229,9 @@ class TokenSpawnTest( GEScenario ):
 	def OnCaptureAreaEntered( self, area, player, token ):
 		GERules.GetTokenMgr().CaptureToken( token )
 		print "Entered capture area " + area.GetGroupName() + "!"
+
+	def OnCaptureAreaExited(self, area, player):
+		print "Exited capture area " + area.GetGroupName() + "!"
 
 	# --------------- #
 	# TOKEN FUNCTIONS #
@@ -238,7 +243,7 @@ class TokenSpawnTest( GEScenario ):
 			GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 255, 255, 100 ) )
 		else:
 			GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", Color( 255, 0, 0, 100 ) )
-			GERules.GetRadar().SetupObjective2( token, team_filter=Glb.TEAM_NONE, color=Color( 255, 0, 0, 120 ) )
+			GERules.GetRadar().SetupObjective( token, team_filter=Glb.TEAM_NONE, color=Color( 255, 0, 0, 120 ) )
 
 	def OnTokenRemoved( self, token ):
 		GERules.GetRadar().DropRadarContact( token )

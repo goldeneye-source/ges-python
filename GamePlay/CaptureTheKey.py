@@ -87,13 +87,6 @@ class CaptureTheKey( GEScenario ):
 		self.game_tokens = { Glb.TEAM_MI6 : Token(), Glb.TEAM_JANUS : Token() }
 		self.game_timers = {}
 
-	def Cleanup( self ):
-		super( CaptureTheKey, self ).Cleanup()
-		self.game_timers = None
-		self.warmupTimer = None
-		self.timerTracker = None
-		self.overtime = None
-
 	def GetPrintName( self ):
 		return "#GES_GP_CAPTUREKEY_NAME"
 
@@ -190,6 +183,13 @@ class CaptureTheKey( GEScenario ):
 			self.game_inWaitTime = False
 
 		GERules.GetRadar().SetForceRadar( True )
+
+	def OnUnloadGamePlay(self):
+		GEScenario.OnUnloadGamePlay( self )
+		self.game_timers = None
+		self.warmupTimer = None
+		self.timerTracker = None
+		self.overtime = None
 
 	def OnCVarChanged( self, name, oldvalue, newvalue ):
 		if name == self.CVAR_CAPOVERRIDE:
