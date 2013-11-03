@@ -23,19 +23,27 @@ from Utils.GETimer import EndRoundCallback, TimerTracker, Timer
 from Utils.GEWarmUp import GEWarmUp
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 
-USING_API = Glb.API_VERSION_1_1_0
+USING_API = Glb.API_VERSION_1_1_1
 FL_DEBUG = False
 
 class Token:
-	def __init__( self ):
-		self.hent = GEEntity.EHANDLE( None )
-		self.next_drop_time = 0
+    def __init__( self ):
+        self._ent = GEEntity.EntityHandle( None )
+        self.next_drop_time = 0
 
-	def GetOwner( self ):
-		if self.hent.Get():
-			return self.hent.Get().GetPlayerOwner()
-		else:
-			return None
+    def SetTokenEnt( self, token ):
+        self._ent = GEEntity.EntityHandle( token )
+
+    def GetTokenEnt( self ):
+        return self._ent.Get()
+
+    def GetOwner( self ):
+        ent = self.GetTokenEnt()
+        if ent is not None:
+            return ent.GetPlayerOwner()
+        else:
+            GEUtil.Warning( "[CTK] Token retrieval attempted without being initialized!\n" )
+            return None
 
 # -----------------------
 # BEGIN CAPTURE THE KEY
@@ -351,208 +359,208 @@ class CaptureTheKey( GEScenario ):
 			if timer.state is Timer.STATE_STOP:
 				GEUtil.InitHudProgressBar( player, self.PROBAR_OVERRIDE, "#GES_GP_CTK_CAPTURE_OVR", Glb.HUDPB_SHOWBAR, self.rules_overrideTime, -1, 0.6, 120, 16, GEUtil.CColor( 220, 220, 220, 240 ) )
 			timer.Start( self.rules_overrideTime )
-		else:
 			self.ctk_CaptureToken( token, player )
+		else:
 
-	def OnCaptureAreaExited( self, area, player ):
-		assert isinstance( area, GEEntity.CBaseEntity )
-		assert isinstance( player, GEPlayer.CGEMPPlayer )
+    def OnCaptureAreaExited( self, area, player ):
+        assert isinstance( area, GEEntity.CBaseEntity )
+        assert isinstance( player, GEPlayer.CGEMPPlayer )
 
-		tokenteam = player.GetTeamNumber()
-		self.game_timers[tokenteam].Pause()
+        tokenteam = player.GetTeamNumber()
+        self.game_timers[tokenteam].Pause()
 
-	def OnTokenSpawned( self, token ):
-		tokenTeam = token.GetTeamNumber()
+    def OnTokenSpawned( self, token ):
+        tokenTeam = token.GetTeamNumber()
 
-		GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", self.ctk_GetColor( tokenTeam ) )
-		GERules.GetRadar().SetupObjective( token, Glb.TEAM_NONE, "", self.ctk_TokenName( tokenTeam ), self.ctk_GetColor( tokenTeam, self.COLOR_OBJ_COLD ) )
+        GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", self.ctk_GetColor( tokenTeam ) )
+        GERules.GetRadar().SetupObjective( token, Glb.TEAM_NONE, "", self.ctk_TokenName( tokenTeam ), self.ctk_GetColor( tokenTeam, self.COLOR_OBJ_COLD ) )
 
-		self.game_tokens[tokenTeam].hent = GEEntity.EHANDLE( token )
+        self.game_tokens[tokenTeam].SetTokenEnt( token )
 
-	def OnTokenPicked( self, token, player ):
-		tokenTeam = token.GetTeamNumber()
-		otherTeam = OppositeTeam( tokenTeam )
+    def OnTokenPicked( self, token, player ):
+        tokenTeam = token.GetTeamNumber()
+        otherTeam = OppositeTeam( tokenTeam )
 
-		self.game_tokens[tokenTeam].next_drop_time = GEUtil.GetTime() + 10.0
+        self.game_tokens[tokenTeam].next_drop_time = GEUtil.GetTime() + 10.0
 
-		GERules.GetRadar().DropRadarContact( token )
-		GERules.GetRadar().AddRadarContact( player, Glb.RADAR_TYPE_PLAYER, True, "sprites/hud/radar/run", self.ctk_GetColor( player.GetTeamNumber() ) )
-		GERules.GetRadar().SetupObjective( player, Glb.TEAM_NONE, "", self.ctk_TokenName( tokenTeam ), self.ctk_GetColor( tokenTeam, self.COLOR_OBJ_HOT ) )
+        GERules.GetRadar().DropRadarContact( token )
+        GERules.GetRadar().AddRadarContact( player, Glb.RADAR_TYPE_PLAYER, True, "sprites/hud/radar/run", self.ctk_GetColor( player.GetTeamNumber() ) )
+        GERules.GetRadar().SetupObjective( player, Glb.TEAM_NONE, "", self.ctk_TokenName( tokenTeam ), self.ctk_GetColor( tokenTeam, self.COLOR_OBJ_HOT ) )
 
-		GEUtil.EmitGameplayEvent( "ctk_tokenpicked", str( player.GetUserID() ), str( tokenTeam ) )
+        GEUtil.EmitGameplayEvent( "ctk_tokenpicked", str( player.GetUserID() ), str( tokenTeam ) )
 
-		# Token bearers move faster
-		player.SetSpeedMultiplier( self.rules_speedMultiplier )
-		player.SetScoreBoardColor( Glb.SB_COLOR_WHITE )
+        # Token bearers move faster
+        player.SetSpeedMultiplier( self.rules_speedMultiplier )
+        player.SetScoreBoardColor( Glb.SB_COLOR_WHITE )
 
-		msgFriend = _( "#GES_GP_CTK_PICKED_FRIEND", player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
-		msgEnemy = _( "#GES_GP_CTK_PICKED_FOE", player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
+        msgFriend = _( "#GES_GP_CTK_PICKED_FRIEND", player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
+        msgEnemy = _( "#GES_GP_CTK_PICKED_FOE", player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
 
-		self.ctk_PostMessage( msgFriend, tokenTeam, tokenTeam )
-		self.ctk_PostMessage( msgEnemy, otherTeam, tokenTeam )
+        self.ctk_PostMessage( msgFriend, tokenTeam, tokenTeam )
+        self.ctk_PostMessage( msgEnemy, otherTeam, tokenTeam )
 
-		GEUtil.PlaySoundTo( tokenTeam, "GEGamePlay.Token_Grab", False )
-		GEUtil.PlaySoundTo( otherTeam, "GEGamePlay.Token_Grab_Enemy", False )
+        GEUtil.PlaySoundTo( tokenTeam, "GEGamePlay.Token_Grab", False )
+        GEUtil.PlaySoundTo( otherTeam, "GEGamePlay.Token_Grab_Enemy", False )
 
-	def OnTokenDropped( self, token, player ):
-		tokenTeam = token.GetTeamNumber()
-		otherTeam = OppositeTeam( tokenTeam )
+    def OnTokenDropped( self, token, player ):
+        tokenTeam = token.GetTeamNumber()
+        otherTeam = OppositeTeam( tokenTeam )
 
-		# Stop the override timer and force remove just in case
-		self.game_timers[tokenTeam].Stop()
-		GEUtil.RemoveHudProgressBar( player, self.PROBAR_OVERRIDE )
+        # Stop the override timer and force remove just in case
+        self.game_timers[tokenTeam].Stop()
+        GEUtil.RemoveHudProgressBar( player, self.PROBAR_OVERRIDE )
 
-		GEUtil.EmitGameplayEvent( "ctk_tokendropped", str( player.GetUserID() ), str( tokenTeam ) )
+        GEUtil.EmitGameplayEvent( "ctk_tokendropped", str( player.GetUserID() ), str( tokenTeam ) )
 
-		GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", self.ctk_GetColor( tokenTeam ) )
-		GERules.GetRadar().SetupObjective( token, Glb.TEAM_NONE, "", self.ctk_TokenName( tokenTeam ), self.ctk_GetColor( tokenTeam, self.COLOR_OBJ_COLD ) )
+        GERules.GetRadar().AddRadarContact( token, Glb.RADAR_TYPE_TOKEN, True, "", self.ctk_GetColor( tokenTeam ) )
+        GERules.GetRadar().SetupObjective( token, Glb.TEAM_NONE, "", self.ctk_TokenName( tokenTeam ), self.ctk_GetColor( tokenTeam, self.COLOR_OBJ_COLD ) )
 
-		GERules.GetRadar().DropRadarContact( player )
-		GERules.GetRadar().ClearObjective( player )
+        GERules.GetRadar().DropRadarContact( player )
+        GERules.GetRadar().ClearObjective( player )
 
-		player.SetSpeedMultiplier( 1.0 )
-		player.SetScoreBoardColor( Glb.SB_COLOR_NORMAL )
+        player.SetSpeedMultiplier( 1.0 )
+        player.SetScoreBoardColor( Glb.SB_COLOR_NORMAL )
 
-		msg = _( "#GES_GP_CTK_DROPPED", player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
+        msg = _( "#GES_GP_CTK_DROPPED", player.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
 
-		self.ctk_PostMessage( msg, tokenTeam, tokenTeam )
-		self.ctk_PostMessage( msg, otherTeam, tokenTeam )
+        self.ctk_PostMessage( msg, tokenTeam, tokenTeam )
+        self.ctk_PostMessage( msg, otherTeam, tokenTeam )
 
-		GEUtil.PlaySoundTo( tokenTeam, "GEGamePlay.Token_Drop_Friend", True )
-		GEUtil.PlaySoundTo( otherTeam, "GEGamePlay.Token_Drop_Enemy", True )
+        GEUtil.PlaySoundTo( tokenTeam, "GEGamePlay.Token_Drop_Friend", True )
+        GEUtil.PlaySoundTo( otherTeam, "GEGamePlay.Token_Drop_Enemy", True )
 
-	def OnTokenRemoved( self, token ):
-		tokenTeam = token.GetTeamNumber()
+    def OnTokenRemoved( self, token ):
+        tokenTeam = token.GetTeamNumber()
 
-		GERules.GetRadar().DropRadarContact( token )
-		self.game_tokens[tokenTeam].hent = GEEntity.EHANDLE( None )
+        GERules.GetRadar().DropRadarContact( token )
+        self.game_tokens[tokenTeam].SetTokenEnt( None )
 
-	def OnPlayerSay( self, player, text ):
-		team = player.GetTeamNumber()
-		# If the player issues !voodoo they will drop their token
-		if text.lower() == Glb.SAY_COMMAND1 and team != Glb.TEAM_SPECTATOR:
-			tokendef = self.game_tokens[team]
-			if player == tokendef.GetOwner():
-				if GEUtil.GetTime() >= tokendef.next_drop_time:
-					GERules.GetTokenMgr().TransferToken( tokendef.hent.Get(), None )
-				else:
-					timeleft = max( 1, int( tokendef.next_drop_time - GEUtil.GetTime() ) )
-					GEUtil.HudMessage( player, _( "#GES_GP_CTK_TOKEN_DROP", timeleft ), -1, self.MSG_MISC_YPOS, self.COLOR_NEUTRAL, 2.0, self.MSG_MISC_CHANNEL )
-				return True
+    def OnPlayerSay( self, player, text ):
+        team = player.GetTeamNumber()
+        # If the player issues !voodoo they will drop their token
+        if text.lower() == Glb.SAY_COMMAND1 and team != Glb.TEAM_SPECTATOR:
+            tokendef = self.game_tokens[team]
+            if player == tokendef.GetOwner():
+                if GEUtil.GetTime() >= tokendef.next_drop_time:
+                    GERules.GetTokenMgr().TransferToken( tokendef.GetTokenEnt(), None )
+                else:
+                    timeleft = max( 1, int( tokendef.next_drop_time - GEUtil.GetTime() ) )
+                    GEUtil.HudMessage( player, _( "#GES_GP_CTK_TOKEN_DROP", timeleft ), -1, self.MSG_MISC_YPOS, self.COLOR_NEUTRAL, 2.0, self.MSG_MISC_CHANNEL )
+                return True
 
-		return False
+        return False
 
 #-------------------#
 # Utility Functions #
 #-------------------#
 
-	def ctk_GetColor( self, team, color_type=0 ):
-		if team == Glb.TEAM_JANUS:
-			if color_type == CaptureTheKey.COLOR_RADAR:
-				return self.COLOR_JANUS_RADAR
-			elif color_type == CaptureTheKey.COLOR_OBJ_COLD:
-				return self.COLOR_JANUS_OBJ_COLD
-			else:
-				return self.COLOR_JANUS_OBJ_HOT
-		elif team == Glb.TEAM_MI6:
-			if color_type == CaptureTheKey.COLOR_RADAR:
-				return self.COLOR_MI6_RADAR
-			elif color_type == CaptureTheKey.COLOR_OBJ_COLD:
-				return self.COLOR_MI6_OBJ_COLD
-			else:
-				return self.COLOR_MI6_OBJ_HOT
-		else:
-			return self.COLOR_NEUTRAL
+    def ctk_GetColor( self, team, color_type=0 ):
+        if team == Glb.TEAM_JANUS:
+            if color_type == CaptureTheKey.COLOR_RADAR:
+                return self.COLOR_JANUS_RADAR
+            elif color_type == CaptureTheKey.COLOR_OBJ_COLD:
+                return self.COLOR_JANUS_OBJ_COLD
+            else:
+                return self.COLOR_JANUS_OBJ_HOT
+        elif team == Glb.TEAM_MI6:
+            if color_type == CaptureTheKey.COLOR_RADAR:
+                return self.COLOR_MI6_RADAR
+            elif color_type == CaptureTheKey.COLOR_OBJ_COLD:
+                return self.COLOR_MI6_OBJ_COLD
+            else:
+                return self.COLOR_MI6_OBJ_HOT
+        else:
+            return self.COLOR_NEUTRAL
 
-	def ctk_CaptureToken( self, token, holder ):
-		assert isinstance( token, GEWeapon.CGEWeapon )
-		assert isinstance( holder, GEPlayer.CGEMPPlayer )
+    def ctk_CaptureToken( self, token, holder ):
+        assert isinstance( token, GEWeapon.CGEWeapon )
+        assert isinstance( holder, GEPlayer.CGEMPPlayer )
 
-		tokenTeam = token.GetTeamNumber()
-		otherTeam = OppositeTeam( tokenTeam )
+        tokenTeam = token.GetTeamNumber()
+        otherTeam = OppositeTeam( tokenTeam )
 
-		GERules.GetRadar().DropRadarContact( token )
-		GERules.GetRadar().DropRadarContact( holder )
+        GERules.GetRadar().DropRadarContact( token )
+        GERules.GetRadar().DropRadarContact( holder )
 
-		holder.SetSpeedMultiplier( 1.0 )
-		holder.SetScoreBoardColor( Glb.SB_COLOR_NORMAL )
+        holder.SetSpeedMultiplier( 1.0 )
+        holder.SetScoreBoardColor( Glb.SB_COLOR_NORMAL )
 
-		# Check overtime requirements
-		if self.game_inOvertime:
-			if not self.game_inOvertimeDelay:
-				self.game_inOvertimeDelay = True
-				self.timerTracker.OneShotTimer( self.OVERTIME_DELAY, EndRoundCallback )
-			else:
-				# We already scored in overtime, ignore this
-				return
+        # Check overtime requirements
+        if self.game_inOvertime:
+            if not self.game_inOvertimeDelay:
+                self.game_inOvertimeDelay = True
+                self.timerTracker.OneShotTimer( self.OVERTIME_DELAY, EndRoundCallback )
+            else:
+                # We already scored in overtime, ignore this
+                return
 
-		# Capture the token and give the capturing team points
-		GERules.GetTokenMgr().CaptureToken( token )
+        # Capture the token and give the capturing team points
+        GERules.GetTokenMgr().CaptureToken( token )
 
-		# Make sure our timer goes away
-		self.game_timers[tokenTeam].Stop()
-		GEUtil.RemoveHudProgressBar( holder, self.PROBAR_OVERRIDE )
+        # Make sure our timer goes away
+        self.game_timers[tokenTeam].Stop()
+        GEUtil.RemoveHudProgressBar( holder, self.PROBAR_OVERRIDE )
 
-		# Give points if not in warmup
-		if not self.warmupTimer.IsInWarmup():
-			GERules.GetTeam( tokenTeam ).AddRoundScore( 1 )
-			holder.AddRoundScore( self.rules_playerCapPoints )
-			GEUtil.EmitGameplayEvent( "ctk_tokencapture", str( holder.GetUserID() ), str( tokenTeam ) )
+        # Give points if not in warmup
+        if not self.warmupTimer.IsInWarmup():
+            GERules.GetTeam( tokenTeam ).AddRoundScore( 1 )
+            holder.AddRoundScore( self.rules_playerCapPoints )
+            GEUtil.EmitGameplayEvent( "ctk_tokencapture", str( holder.GetUserID() ), str( tokenTeam ) )
 
-		GEUtil.PlaySoundTo( tokenTeam, "GEGamePlay.Token_Capture_Friend", True )
-		GEUtil.PlaySoundTo( otherTeam, "GEGamePlay.Token_Capture_Enemy", True )
+        GEUtil.PlaySoundTo( tokenTeam, "GEGamePlay.Token_Capture_Friend", True )
+        GEUtil.PlaySoundTo( otherTeam, "GEGamePlay.Token_Capture_Enemy", True )
 
-		msg = _( "#GES_GP_CTK_CAPTURE", holder.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
-		self.ctk_PostMessage( msg )
+        msg = _( "#GES_GP_CTK_CAPTURE", holder.GetCleanPlayerName(), self.ctk_TokenName( tokenTeam ) )
+        self.ctk_PostMessage( msg )
 
-		GEUtil.PostDeathMessage( msg )
+        GEUtil.PostDeathMessage( msg )
 
-	def ctk_OnTokenTimerUpdate( self, timer, update_type ):
-		assert isinstance( timer, Timer )
+    def ctk_OnTokenTimerUpdate( self, timer, update_type ):
+        assert isinstance( timer, Timer )
 
-		tokenTeam = Glb.TEAM_MI6 if ( timer.GetName() == "ctk_mi6" ) else Glb.TEAM_JANUS
-		otherTeam = OppositeTeam( tokenTeam )
+        tokenTeam = Glb.TEAM_MI6 if ( timer.GetName() == "ctk_mi6" ) else Glb.TEAM_JANUS
+        otherTeam = OppositeTeam( tokenTeam )
 
-		time = timer.GetCurrentTime()
-		holder = self.game_tokens[tokenTeam].GetOwner()
+        time = timer.GetCurrentTime()
+        holder = self.game_tokens[tokenTeam].GetOwner()
 
-		if holder is not None:
-			if update_type == Timer.UPDATE_FINISH:
-				token = self.game_tokens[tokenTeam].hent.Get()
-				if token is not None:
-					self.ctk_CaptureToken( token, holder )
+        if holder is not None:
+            if update_type == Timer.UPDATE_FINISH:
+                token = self.game_tokens[tokenTeam].GetTokenEnt()
+                if token is not None:
+                    self.ctk_CaptureToken( token, holder )
 
-			elif update_type == Timer.UPDATE_STOP:
-				GEUtil.RemoveHudProgressBar( holder, self.PROBAR_OVERRIDE )
+            elif update_type == Timer.UPDATE_STOP:
+                GEUtil.RemoveHudProgressBar( holder, self.PROBAR_OVERRIDE )
 
-			elif update_type == Timer.UPDATE_RUN:
-				GEUtil.UpdateHudProgressBar( holder, self.PROBAR_OVERRIDE, time )
+            elif update_type == Timer.UPDATE_RUN:
+                GEUtil.UpdateHudProgressBar( holder, self.PROBAR_OVERRIDE, time )
 
-				# Check to see if the other team dropped their token mid-capture
-				if not self.ctk_IsTokenHeld( otherTeam ):
-					timer.Finish()
+                # Check to see if the other team dropped their token mid-capture
+                if not self.ctk_IsTokenHeld( otherTeam ):
+                    timer.Finish()
 
-	def ctk_IsTokenHeld( self, team ):
-		return self.game_tokens[team].GetOwner() != None
+    def ctk_IsTokenHeld( self, team ):
+        return self.game_tokens[team].GetOwner() != None
 
-	def ctk_PostMessage( self, msg, to_team=Glb.TEAM_NONE, from_team=Glb.TEAM_NONE ):
-		if from_team == Glb.TEAM_JANUS:
-			channel = self.MSG_JANUS_CHANNEL
-			ypos = self.MSG_JANUS_YPOS
-		elif from_team == Glb.TEAM_MI6:
-			channel = self.MSG_MI6_CHANNEL
-			ypos = self.MSG_MI6_YPOS
-		else:
-			channel = self.MSG_MISC_CHANNEL
-			ypos = self.MSG_MISC_YPOS
+    def ctk_PostMessage( self, msg, to_team=Glb.TEAM_NONE, from_team=Glb.TEAM_NONE ):
+        if from_team == Glb.TEAM_JANUS:
+            channel = self.MSG_JANUS_CHANNEL
+            ypos = self.MSG_JANUS_YPOS
+        elif from_team == Glb.TEAM_MI6:
+            channel = self.MSG_MI6_CHANNEL
+            ypos = self.MSG_MI6_YPOS
+        else:
+            channel = self.MSG_MISC_CHANNEL
+            ypos = self.MSG_MISC_YPOS
 
-		if to_team == Glb.TEAM_NONE:
-			GEUtil.HudMessage( None, msg, -1, ypos, self.ctk_GetColor( from_team ), 5.0, channel )
-		else:
-			GEUtil.HudMessage( to_team, msg, -1, ypos, self.ctk_GetColor( from_team ), 5.0, channel )
+        if to_team == Glb.TEAM_NONE:
+            GEUtil.HudMessage( None, msg, -1, ypos, self.ctk_GetColor( from_team ), 5.0, channel )
+        else:
+            GEUtil.HudMessage( to_team, msg, -1, ypos, self.ctk_GetColor( from_team ), 5.0, channel )
 
-	def ctk_TokenName( self, team ):
-		return "#GES_GP_CTK_OBJ_JANUS" if team == Glb.TEAM_MI6 else "#GES_GP_CTK_OBJ_MI6"
+    def ctk_TokenName( self, team ):
+        return "#GES_GP_CTK_OBJ_JANUS" if team == Glb.TEAM_MI6 else "#GES_GP_CTK_OBJ_MI6"
 
 
 

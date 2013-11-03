@@ -23,11 +23,11 @@ import GEGamePlay, GEUtil
 import GamePlay
 
 class PYGamePlayManager( GEGamePlay.CGamePlayManager ):
-	def __init__( self ):
-		super( PYGamePlayManager, self ).__init__()
+    def __init__( self ):
+        super( PYGamePlayManager, self ).__init__()
 
-		import reimport
-		reimport.reimport( GamePlay )
+        import reimport
+        reimport.reimport( GamePlay )
 
 	def LoadScenario( self, scenario_name ):
 		found_scenario = FindModule( GamePlay, scenario_name )
@@ -47,8 +47,8 @@ class PYGamePlayManager( GEGamePlay.CGamePlayManager ):
 			except KeyError:
 				try:
 					RemoveCompiled( "%s\\GamePlay\\%s" % ( PY_BASE_DIR, scenario_name ) )
-
-					__import__( module, globals(), locals() )
+                    
+                    __import__( module, globals(), locals() )
 
 					scenario = getattr( sys.modules[module], scenario_name )()
 
@@ -57,22 +57,22 @@ class PYGamePlayManager( GEGamePlay.CGamePlayManager ):
 				except ImportError:
 					PrintError( "Failed to load scenario %s\n" % scenario_name )
 
-			if scenario and not CheckAPI( sys.modules[module], GEGlobal.API_GP_VERSION ):
-				GEUtil.Warning( "Scenario load FAILED due to API mismatch.\n" )
-				return None
+            if scenario and not CheckAPI( sys.modules[module], GEGlobal.API_GP_VERSION ):
+                GEUtil.Warning( "Scenario load FAILED due to API mismatch.\n" )
+                return None
 
-			return scenario
+            return scenario
 
 pyGamePlayMangObj = None
 
 def GetManager():
-	global pyGamePlayMangObj
+    global pyGamePlayMangObj
 
-	if not pyGamePlayMangObj:
-		pyGamePlayMangObj = PYGamePlayManager()
+    if not pyGamePlayMangObj:
+        pyGamePlayMangObj = PYGamePlayManager()
 
-	return pyGamePlayMangObj
+    return pyGamePlayMangObj
 
 def PurgeManager():
-	global pyGamePlayMangObj
-	pyGamePlayMangObj = None
+    global pyGamePlayMangObj
+    pyGamePlayMangObj = None

@@ -19,7 +19,9 @@
 # Static defines for the python API's
 API_VERSION_1_0_0 = str
 API_VERSION_1_1_0 = str
-# Current API version (DO NOT USE)
+API_VERSION_1_1_1 = str
+
+# Current API version (INTERNAL USE ONLY)
 API_AI_VERSION = str
 API_GP_VERSION = str
 
@@ -28,23 +30,23 @@ PY_BASE_DIR = str
 
 # Functions that can be hooked for callbacks
 class EventHooks:
-	GP_THINK = int
-	GP_PLAYERCONNECT = int
-	GP_PLAYERDISCONNECT = int
-	GP_PLAYERSPAWN = int
-	GP_PLAYEROBSERVER = int
-	GP_PLAYERKILLED = int
-	GP_PLAYERTEAM = int
-	GP_ROUNDBEGIN = int
-	GP_ROUNDEND = int
+    GP_THINK = int
+    GP_PLAYERCONNECT = int
+    GP_PLAYERDISCONNECT = int
+    GP_PLAYERSPAWN = int
+    GP_PLAYEROBSERVER = int
+    GP_PLAYERKILLED = int
+    GP_PLAYERTEAM = int
+    GP_ROUNDBEGIN = int
+    GP_ROUNDEND = int
 
-	AI_ONSPAWN = int
-	AI_ONLOOKED = int
-	AI_ONLISTENED = int
-	AI_PICKUPITEM = int
-	AI_GATHERCONDITIONS = int
-	AI_SELECTSCHEDULE = int
-	AI_SETDIFFICULTY = int
+    AI_ONSPAWN = int
+    AI_ONLOOKED = int
+    AI_ONLISTENED = int
+    AI_PICKUPITEM = int
+    AI_GATHERCONDITIONS = int
+    AI_SELECTSCHEDULE = int
+    AI_SETDIFFICULTY = int
 
 # Standard Say Commands (for use in OnPlayerSay)
 SAY_COMMAND1 = "!voodoo"

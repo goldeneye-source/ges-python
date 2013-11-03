@@ -22,7 +22,7 @@ import GEGlobal
 # NOTE NOTE #
 # GunGame is now Arsenal!
 
-USING_API = GEGlobal.API_VERSION_1_1_0
+USING_API = GEGlobal.API_VERSION_1_1_1
 
 class GunGame( Arsenal ):
-	pass
+    pass
