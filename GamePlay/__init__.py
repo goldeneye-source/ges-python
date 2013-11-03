@@ -32,10 +32,10 @@ class GEScenario( CBaseScenario ):
         # GEUtil.Warning( "Python Scenario Deleted!\n" )
         pass
 
-	# DO NOT OVERRIDE THESE FUNCTIONS
-	def RegisterEventHook( self, hook, func ):
-		if not self.__hooks.has_key( hook ):
-			self.__hooks[hook] = []
+    # DO NOT OVERRIDE THESE FUNCTIONS
+    def RegisterEventHook( self, hook, func ):
+        if not self.__hooks.has_key( hook ):
+            self.__hooks[hook] = []
 
         # Make sure we don't double register
         if self.__hooks[hook].count( func ) == 0:
@@ -69,8 +69,8 @@ class GEScenario( CBaseScenario ):
     def OnLoadGamePlay( self ):
         pass
 
-	def OnUnloadGamePlay( self ):
-		self.ClearEventHooks()
+    def OnUnloadGamePlay( self ):
+        self.ClearEventHooks()
 
     def OnPlayerConnect( self, player ):
         pass

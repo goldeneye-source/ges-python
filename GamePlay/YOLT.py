@@ -47,8 +47,8 @@ class YOLT( GEScenario ):
     def GetTeamPlay( self ):
         return Glb.TEAMPLAY_TOGGLE
 
-	def GetPrintName( self ):
-		return "#GES_GP_YOLT_NAME"
+    def GetPrintName( self ):
+        return "#GES_GP_YOLT_NAME"
 
     def GetScenarioHelp( self, help_obj ):
         help_obj.SetDescription( "#GES_GP_YOLT_HELP" )
@@ -67,14 +67,14 @@ class YOLT( GEScenario ):
         GEScenario.OnUnloadGamePlay( self )
         self.pltracker = None
 
-	def OnUnloadGamePlay( self ):
-		GEScenario.OnUnloadGamePlay( self )
-		self.pltracker = None
+    def OnUnloadGamePlay( self ):
+        GEScenario.OnUnloadGamePlay( self )
+        self.pltracker = None
 
-	def OnPlayerConnect( self, player ):
-		self.pltracker[player][TR_SPAWNED] = False
-		self.pltracker[player][TR_ELIMINATED] = True
-		self.pltracker[player][TR_WASINPLAY] = False
+    def OnPlayerConnect( self, player ):
+        self.pltracker[player][TR_SPAWNED] = False
+        self.pltracker[player][TR_ELIMINATED] = True
+        self.pltracker[player][TR_WASINPLAY] = False
 
     def OnPlayerDisconnect( self, player ):
         if GERules.IsRoundLocked() and self.yolt_IsInPlay( player ):

@@ -17,6 +17,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 from .DeathMatch import DeathMatch
+from .Utils import GetPlayers
 import GEPlayer, GEUtil, GEMPGameRules, GEGlobal
 
 USING_API = GEGlobal.API_VERSION_1_1_1
@@ -39,7 +40,7 @@ class LTK( DeathMatch ):
         self.ltk_SetDamageMultiplier( 1000 )
 
     def OnPlayerConnect( self, player ):
-        player.ltk_SetDamageMultiplier( 1000 )
+        player.SetDamageMultiplier( 1000 )
 
     def OnPlayerSpawn( self, player ):
         if player.IsInitialSpawn():
@@ -50,6 +51,5 @@ class LTK( DeathMatch ):
         GEMPGameRules.DisableArmorSpawns()
 
     def ltk_SetDamageMultiplier( self, amount ):
-        for i in range( 32 ):
-            if GEPlayer.IsValidPlayerIndex( i ):
-                GEPlayer.GetMPPlayer( i ).SetDamageMultiplier( amount )
+        for player in GetPlayers():
+            player.SetDamageMultiplier( amount )

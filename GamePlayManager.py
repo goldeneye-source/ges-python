@@ -29,33 +29,33 @@ class PYGamePlayManager( GEGamePlay.CGamePlayManager ):
         import reimport
         reimport.reimport( GamePlay )
 
-	def LoadScenario( self, scenario_name ):
-		found_scenario = FindModule( GamePlay, scenario_name )
-		if not found_scenario:
-			GEUtil.Warning( "Failed to find scenario %s!\n" % scenario_name )
-			return None
-		else:
-			# Assign the found scenario to ensure we have the right case
-			scenario_name = found_scenario
-			module = "GamePlay.%s" % scenario_name
-			scenario = None
+    def LoadScenario( self, scenario_name ):
+        found_scenario = FindModule( GamePlay, scenario_name )
+        if not found_scenario:
+            GEUtil.Warning( "Failed to find scenario %s!\n" % scenario_name )
+            return None
+        else:
+            # Assign the found scenario to ensure we have the right case
+            scenario_name = found_scenario
+            module = "GamePlay.%s" % scenario_name
+            scenario = None
 
-			try:
-				# Try to load immediately, fallback to import if new class
-				scenario = getattr( sys.modules[module], scenario_name )()
-				print "Loading scenario %s from cache" % scenario_name
-			except KeyError:
-				try:
-					RemoveCompiled( "%s\\GamePlay\\%s" % ( PY_BASE_DIR, scenario_name ) )
+            try:
+                # Try to load immediately, fallback to import if new class
+                scenario = getattr( sys.modules[module], scenario_name )()
+                print "Loading scenario %s from cache" % scenario_name
+            except KeyError:
+                try:
+                    RemoveCompiled( "%s\\GamePlay\\%s" % ( PY_BASE_DIR, scenario_name ) )
                     
                     __import__( module, globals(), locals() )
 
-					scenario = getattr( sys.modules[module], scenario_name )()
+                    scenario = getattr( sys.modules[module], scenario_name )()
 
-					print "Loading scenario %s from disk" % scenario_name
+                    print "Loading scenario %s from disk" % scenario_name
 
-				except ImportError:
-					PrintError( "Failed to load scenario %s\n" % scenario_name )
+                except ImportError:
+                    PrintError( "Failed to load scenario %s\n" % scenario_name )
 
             if scenario and not CheckAPI( sys.modules[module], GEGlobal.API_GP_VERSION ):
                 GEUtil.Warning( "Scenario load FAILED due to API mismatch.\n" )
