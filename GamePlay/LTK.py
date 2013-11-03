@@ -16,46 +16,40 @@
 # along with GoldenEye: Source's Python Library.
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
-from . import GEScenario
+from .DeathMatch import DeathMatch
 import GEPlayer, GEUtil, GEMPGameRules, GEGlobal
 
-USING_API = GEGlobal.API_VERSION_1_1_0
+USING_API = GEGlobal.API_VERSION_1_1_1
 
-class LTK( GEScenario ):
-	def GetTeamPlay( self ):
-		return GEGlobal.TEAMPLAY_TOGGLE
+class LTK( DeathMatch ):
+    def GetPrintName( self ):
+        return "#GES_GP_LTK_NAME"
 
-	def GetPrintName( self ):
-		return "#GES_GP_LTK_NAME"
+    def GetScenarioHelp( self, help_obj ):
+        help_obj.SetDescription( "#GES_GP_LTK_HELP" )
 
-	def GetScenarioHelp( self, help_obj ):
-		help_obj.SetDescription( "#GES_GP_LTK_HELP" )
+    def GetGameDescription( self ):
+        if GEMPGameRules.IsTeamplay():
+            return "Team LTK"
+        else:
+            return "LTK"
 
-	def GetGameDescription( self ):
-		if GEMPGameRules.IsTeamplay():
-			return "Team LTK"
-		else:
-			return "LTK"
+    def OnLoadGamePlay( self ):
+        super( LTK, self ).OnLoadGamePlay()
+        self.ltk_SetDamageMultiplier( 1000 )
 
-	def OnLoadGamePlay( self ):
-		GEMPGameRules.SetAllowTeamSpawns( False )
-		self.SetDamageMultiplier( 1000 )
+    def OnPlayerConnect( self, player ):
+        player.ltk_SetDamageMultiplier( 1000 )
 
-	def OnUnloadGamePlay( self ):
-		self.SetDamageMultiplier( 1 )
+    def OnPlayerSpawn( self, player ):
+        if player.IsInitialSpawn():
+            GEUtil.PopupMessage( player, "#GES_GP_LTK_NAME", "#GES_GPH_LTK_GOAL" )
 
-	def OnPlayerConnect( self, player ):
-		player.SetDamageMultiplier( 1000 )
+    def OnRoundBegin( self ):
+        super( LTK, self ).OnRoundBegin()
+        GEMPGameRules.DisableArmorSpawns()
 
-	def OnPlayerSpawn( self, player ):
-		if player.IsInitialSpawn():
-			GEUtil.PopupMessage( player, "#GES_GP_LTK_NAME", "#GES_GPH_LTK_GOAL" )
-
-	def OnRoundBegin( self ):
-		GEMPGameRules.ResetAllPlayersScores()
-		GEMPGameRules.DisableArmorSpawns()
-
-	def SetDamageMultiplier( self, amount ):
-		for i in range( 32 ):
-			if GEPlayer.IsValidPlayerIndex( i ):
-				GEPlayer.GetMPPlayer( i ).SetDamageMultiplier( amount )
+    def ltk_SetDamageMultiplier( self, amount ):
+        for i in range( 32 ):
+            if GEPlayer.IsValidPlayerIndex( i ):
+                GEPlayer.GetMPPlayer( i ).SetDamageMultiplier( amount )

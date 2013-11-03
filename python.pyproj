@@ -7,7 +7,7 @@
     <ProjectHome>
     </ProjectHome>
     <StartupFile>__init__.py</StartupFile>
-    <SearchPath>lib\GESource\gesource.zip</SearchPath>
+    <SearchPath>lib\GESource</SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
     <OutputPath>.</OutputPath>
     <InterpreterId>00000000-0000-0000-0000-000000000000</InterpreterId>

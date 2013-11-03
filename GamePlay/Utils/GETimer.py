@@ -20,174 +20,186 @@ import GEUtil, GEMPGameRules
 from GEGlobal import EventHooks
 
 def EndMatchCallback( timer, type_ ):
-	if type_ == Timer.UPDATE_FINISH:
-		GEMPGameRules.EndMatch()
+    if type_ == Timer.UPDATE_FINISH:
+        GEMPGameRules.EndMatch()
 
 def EndRoundCallback( timer, type_ ):
-	if type_ == Timer.UPDATE_FINISH:
-		GEMPGameRules.EndRound()
+    if type_ == Timer.UPDATE_FINISH:
+        GEMPGameRules.EndRound()
 
 class TimerTracker:
-	def __init__( self, parent ):
-		if not hasattr( parent, 'RegisterEventHook' ):
-			raise AttributeError( "Parent must be a Gameplay Scenario type!" )
+    def __init__( self, parent ):
+        if not hasattr( parent, 'RegisterEventHook' ):
+            raise AttributeError( "Parent must be a Gameplay Scenario type!" )
 
-		self.timers = []
-		self.firstrun = True
-		self.lastagetime = 0
-		self._oneshots = 0
+        self.timers = []
+        self.is_first_run = True
+        self.time_last_age = 0
+        self._oneshots = 0
 
-		# Register finishCallback to age timers automatically
-		parent.RegisterEventHook( EventHooks.GP_THINK, self.AgeTimers )
+        # Register finishCallback to age timers automatically
+        parent.RegisterEventHook( EventHooks.GP_THINK, self._age_timers )
 
-	def __del__( self ):
-		self.timers = None
+    def CreateTimer( self, name ):
+        t = Timer( name )
+        self.timers.append( t )
+        return t
 
-	def CreateTimer( self, name ):
-		t = Timer( name )
-		self.timers.append( t )
-		return t
+    def RemoveTimer( self, name=None ):
+        if not name:
+            self.timers = []
+        else:
+            for t in self.timers:
+                if t.GetName() == name:
+                    self.timers.remove( t )
+                    return
 
-	def RemoveTimer( self, name=None ):
-		if not name:
-			self.timers = []
-		else:
-			for t in self.timers:
-				if t.GetName() == name:
-					self.timers.remove( t )
-					return
+    def OneShotTimer( self, time, callback, update_inter=0.5 ):
+        t = Timer( "_oneshot_timer_%d" % self._oneshots )
+        t.SetUpdateCallback( callback, update_inter )
+        t.Start( time, False )
+        self.timers.append( t )
+        self._oneshots += 1
 
-	def OneShotTimer( self, time, callback, update_inter=0.5 ):
-		t = Timer( "_oneshot_timer_%d" % self._oneshots )
-		t.SetUpdateCallback( callback, update_inter )
-		t.Start( time, False )
-		self.timers.append( t )
-		self._oneshots += 1
+    def ResetTimer( self, name=None ):
+        for t in self.timers:
+            if not name or t.name == name:
+                t.Stop()
 
-	def ResetTimer( self, name=None ):
-		for t in self.timers:
-			if not name or t.name == name:
-				t.Stop()
+    def _age_timers( self ):
+        now = GEUtil.GetTime()
 
-	def AgeTimers( self ):
-		now = GEUtil.GetTime()
+        if self.is_first_run:
+            self.time_last_age = now
+            self.is_first_run = False
 
-		if self.firstrun:
-			self.lastagetime = now
-			self.firstrun = False
+        delta = now - self.time_last_age
+        for t in self.timers:
+            t._age_timer( now, delta )
+            if t.debug:
+                GEUtil.Msg( "[GETimer] Timer %s is %0.1f / %0.1f\n" % ( t.GetName(), t.GetCurrentTime(), t.GetMaxTime() ) )
 
-		delta = now - self.lastagetime
-		for t in self.timers:
-			t.AgeTimer( now, delta )
-			if t.debug:
-				GEUtil.Msg( "[GETimer] Timer %s is %0.1f / %0.1f\n" % ( t.GetName(), t.GetTime(), t.GetLimit() ) )
+        self.time_last_age = now
 
-		self.lastagetime = now
-
-# Simple timer that can be registered to a timer updater
-# which decrements all timers it is currently tracking
 class Timer:
-	( UPDATE_START, UPDATE_RUN, UPDATE_PAUSE, UPDATE_STOP, UPDATE_FINISH ) = range( 5 )
-	( STATE_RUN, STATE_PAUSE, STATE_STOP ) = range( 3 )
+    """
+    Simple timer that is registered to a TimerTracker
+    This class should not be instantiated outside of a TimerTracker
+    """
 
-	def __init__( self, name ):
-		self.name = name
-		self.currTime = 0
-		self.maxTime = 0
-		self.startAgeTime = 0
-		self.ageDelay = 0
-		self.ageRate = 0
-		self.state = Timer.STATE_STOP
-		self.repeat = False
-		self.updateCallback = None
-		self.updateRate = 0.25
-		self.updateNext = 0
-		self.updateDirty = False
-		self.debug = False
+    ( UPDATE_START, UPDATE_RUN, UPDATE_PAUSE, UPDATE_STOP, UPDATE_FINISH ) = range( 5 )
+    ( STATE_RUN, STATE_PAUSE, STATE_STOP ) = range( 3 )
 
-	def SetUpdateCallback( self, cb, interval=0.25 ):
-		self.updateCallback = cb
-		self.updateRate = interval
-		self.updateNext = 0
+    def __init__( self, name ):
+        self.name = name
+        # Controls time and trigger points
+        self.time_curr = 0
+        self.time_max = 0
+        self.time_start_aging = 0
+        self.time_next_update = 0
+        # Control aging of this timer
+        self.aging_delay = 0
+        self.aging_rate = 0
+        # State and flags
+        self.state = Timer.STATE_STOP
+        self.repeat = False
+        # Control update of this timer
+        self.update_cb = None
+        self.update_rate = 0.25
+        self.update_dirty = False
+        # For debugging use only
+        self.debug = False
 
-	def SetAgeRate( self, rate, delay=0 ):
-		self.ageRate = rate
-		self.ageDelay = delay
+    def SetUpdateCallback( self, cb, interval=0.25 ):
+        """
+        Set an update callback that receives update messages
 
-	def Start( self, maxTime=0, repeat=False ):
-		if self.state is Timer.STATE_STOP:
-			self.currTime = 0
-			self.updateNext = 0
-			self.maxTime = maxTime
-			self.repeat = repeat
+        Arguments:
+            cb -- Callback function, signature must match "def Callback( timer, type_ )"
+            interval -- minimum rate that a Timer.UPDATE_RUN will be issued (default 0.25)
+        """
+        self.update_cb = cb
+        self.update_rate = interval
+        self.time_next_update = 0
 
-		self.state = Timer.STATE_RUN
-		self._CallUpdate( Timer.UPDATE_START )
+    def SetAgeRate( self, rate, delay=0 ):
+        self.aging_rate = rate
+        self.aging_delay = delay
 
-	def Restart( self ):
-		self._CallUpdate( Timer.UPDATE_FINISH )
-		self.currTime = 0
-		self.updateNext = 0
-		self.state = Timer.STATE_RUN
-		self._CallUpdate( Timer.UPDATE_START )
+    def Start( self, time_max=0, repeat=False ):
+        if self.state is Timer.STATE_STOP:
+            self.time_curr = 0
+            self.time_next_update = 0
+            self.time_max = time_max
+            self.repeat = repeat
 
-	def Pause( self ):
-		if self.state is Timer.STATE_RUN:
-			self.startAgeTime = GEUtil.GetTime() + self.ageDelay
-			self.state = Timer.STATE_PAUSE
-			self._CallUpdate( Timer.UPDATE_PAUSE )
+        self.state = Timer.STATE_RUN
+        self._call_update( Timer.UPDATE_START )
 
-	def Stop( self ):
-		self.repeat = False
-		self.state = Timer.STATE_STOP
-		self._CallUpdate( Timer.UPDATE_STOP )
+    def Restart( self ):
+        self._call_update( Timer.UPDATE_FINISH )
+        self.time_curr = 0
+        self.time_next_update = 0
+        self.state = Timer.STATE_RUN
+        self._call_update( Timer.UPDATE_START )
 
-	def Finish( self ):
-		self._CallUpdate( Timer.UPDATE_FINISH )
-		self.Stop()
+    def Pause( self ):
+        if self.state is Timer.STATE_RUN:
+            self.time_start_aging = GEUtil.GetTime() + self.aging_delay
+            self.state = Timer.STATE_PAUSE
+            self._call_update( Timer.UPDATE_PAUSE )
 
-	def GetName( self ):
-		return self.name
+    def Stop( self ):
+        self.repeat = False
+        self.state = Timer.STATE_STOP
+        self._call_update( Timer.UPDATE_STOP )
 
-	def GetCurrentTime( self ):
-		return self.currTime
+    def Finish( self ):
+        self._call_update( Timer.UPDATE_FINISH )
+        self.Stop()
 
-	def GetMaxTime( self ):
-		return self.maxTime
+    def GetName( self ):
+        return self.name
 
-	def AgeTimer( self, now, delta ):
-		if self.state == Timer.STATE_RUN:
-			self.currTime += delta
+    def GetCurrentTime( self ):
+        return self.time_curr
 
-			# Check if we are done
-			if self.maxTime > 0 and self.currTime >= self.maxTime:
-				# Repeat if desired, otherwise stop
-				if self.repeat:
-					self.Restart()
-				else:
-					self.Finish()
-			else:
-				self.updateDirty = True
+    def GetMaxTime( self ):
+        return self.time_max
 
-		elif self.state == Timer.STATE_PAUSE and self.currTime > 0:
-			# Age the timer if we have it defined
-			if now >= self.startAgeTime and self.ageRate > 0:
-				self.currTime -= delta * self.ageRate;
+    def _age_timer( self, now, delta ):
+        if self.state == Timer.STATE_RUN:
+            self.time_curr += delta
 
-				if self.currTime <= 0:
-					self.currTime = 0
-					self.Stop()
-				else:
-					self.updateDirty = True
+            # Check if we are done
+            if self.time_max > 0 and self.time_curr >= self.time_max:
+                # Repeat if desired, otherwise stop
+                if self.repeat:
+                    self.Restart()
+                else:
+                    self.Finish()
+            else:
+                self.update_dirty = True
 
-		# Attempt an update call
-		self._CallUpdate( Timer.UPDATE_RUN )
+        elif self.state == Timer.STATE_PAUSE and self.time_curr > 0:
+            # Age the timer if we have it defined
+            if now >= self.time_start_aging and self.aging_rate > 0:
+                self.time_curr -= delta * self.aging_rate;
 
-	def _CallUpdate( self, type_ ):
-		now = GEUtil.GetTime()
-		# We only attempt this if we have a callback, are a special update or are dirty and its time
-		if self.updateCallback and ( type_ != Timer.UPDATE_RUN or ( self.updateDirty and now >= self.updateNext ) ):
-			self.updateNext = now + self.updateRate
-			self.updateDirty = False
-			# Call into our callback
-			self.updateCallback( self, type_ )
+                if self.time_curr <= 0:
+                    self.time_curr = 0
+                    self.Stop()
+                else:
+                    self.update_dirty = True
+
+        # Attempt an update call
+        self._call_update( Timer.UPDATE_RUN )
+
+    def _call_update( self, type_ ):
+        now = GEUtil.GetTime()
+        # We only attempt this if we have a callback, are a special update or are dirty and its time
+        if self.update_cb and ( type_ != Timer.UPDATE_RUN or ( self.update_dirty and now >= self.time_next_update ) ):
+            self.time_next_update = now + self.update_rate
+            self.update_dirty = False
+            # Call into our callback
+            self.update_cb( self, type_ )

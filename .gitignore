@@ -34,3 +34,5 @@ nosetests.xml
 python.log
 gphashes.txt
 *.suo
+GamePlay/LaunchCode.py
+GamePlay/Uplink.py
