@@ -90,7 +90,7 @@ class Arsenal( GEScenario ):
         if weaponList != weaponListCopy:
             weaponList = list( weaponListCopy )
 
-    def OnUnloadGamePlay(self):
+    def OnUnloadGamePlay( self ):
         GEScenario.OnUnloadGamePlay( self )
         self.warmupTimer = None
         self.pltracker = None
