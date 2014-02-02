@@ -42,10 +42,6 @@ class TournamentDM( GEScenario ):
         self.FragLimit = 50
         self.FragMessages = True
 
-    def Cleanup( self ):
-        GEScenario.Cleanup( self )
-        self.warmupTimer = None
-
     def GetPrintName( self ):
         return "#GES_GP_TOURNAMENTDM_NAME"
 
@@ -73,6 +69,10 @@ class TournamentDM( GEScenario ):
         else:
             if GERules.GetNumActivePlayers() >= 4:
                 self.WaitingForPlayers = False
+
+    def OnUnloadGamePlay( self ):
+        GEScenario.OnUnloadGamePlay( self )
+        self.warmupTimer = None
 
     def OnCVarChanged( self, name, oldvalue, newvalue ):
         if name == "tdm_fraglimit":
