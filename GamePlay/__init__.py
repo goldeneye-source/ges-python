@@ -102,7 +102,19 @@ class GEScenario( CBaseScenario ):
         pass
 
     def OnPlayerKilled( self, victim, killer, weapon ):
-        """Default Deathmatch style scoring"""
+        """Default Deathmatch style scoring
+
+        Players can be killed by map hurt triggers and by CGEMPPlayer.CommitSuicide().
+        CGEMPPlayer.CommitSuicide() is called when players change their team.
+
+        Parameters:
+        victim -- (CGEMPPlayer)
+        killer -- (None or CGEMPPlayer) Will only be none when the victim is killed by a map
+        hurt trigger.
+        weapon -- (None,CBaseEntity or CGEMPPlayer) Will only be none when the victim is killed
+        by a map hurt trigger. Will be a CGEMPPlayer object when the victim is killed by
+        CGEMPPlayer.CommitSuicide(). Type check: if type( weapon ) is GEWeapon.CGEWeapon:
+        """
         if not victim:
             return
 
