@@ -25,15 +25,40 @@ import weakref
 import traceback
 import types
 import bisect
+from os import path
+import ntpath
+
+try:
+    import visualstudio_py_util as _vspu
+except ImportError:
+    try:
+        import ptvsd.visualstudio_py_util as _vspu
+    except ImportError:
+        # in the local attach scenario, visualstudio_py_util should already be defined
+        _vspu = visualstudio_py_util
+to_bytes = _vspu.to_bytes
+exec_file = _vspu.exec_file
+read_bytes = _vspu.read_bytes
+read_int = _vspu.read_int
+read_string = _vspu.read_string
+write_bytes = _vspu.write_bytes
+write_int = _vspu.write_int
+write_string = _vspu.write_string
+safe_repr = _vspu.SafeRepr()
+
 try:
     import visualstudio_py_repl as _vspr
 except ImportError:
     try:
         import ptvsd.visualstudio_py_repl as _vspr
     except ImportError:
-        # in the attach scenario, visualstudio_py_repl should already be defined
-        visualstudio_py_repl
-from os import path
+        # in the local attach scenario, visualstudio_py_repl should already be defined
+        _vspr = visualstudio_py_repl
+
+try:
+    import stackless
+except ImportError:
+    stackless = None
 
 try:
     xrange
@@ -44,6 +69,12 @@ if sys.platform == 'cli':
     import clr
     from System.Runtime.CompilerServices import ConditionalWeakTable
     IPY_SEEN_MODULES = ConditionalWeakTable[object, object]()
+
+# Import encodings early to avoid import on the debugger thread, which may cause deadlock
+from encodings import utf_8
+
+# WARNING: Avoid imports beyond this point, specifically on the debugger thread, as this may cause
+# deadlock where the debugger thread performs an import while a user thread has the import lock
 
 # save start_new_thread so we can call it later, we'll intercept others calls to it.
 
@@ -83,10 +114,22 @@ class _SendLockContextManager(object):
        is disconnected"""
 
     def __enter__(self):
+        # mark that we're about to do socket I/O so we won't deliver
+        # debug events when we're debugging the standard library
+        cur_thread = get_thread_from_id(thread.get_ident())
+        if cur_thread is not None:
+            cur_thread.is_sending = True
+
         send_lock.acquire()
 
-    def __exit__(self, exc_type, exc_value, tb):        
+    def __exit__(self, exc_type, exc_value, tb):
         send_lock.release()
+        
+        # start sending debug events again
+        cur_thread = get_thread_from_id(thread.get_ident())
+        if cur_thread is not None:
+            cur_thread.is_sending = False
+
         if exc_type is not None:
             detach_threads()
             detach_process()
@@ -112,11 +155,6 @@ FRAME_KIND_NONE = 0
 FRAME_KIND_PYTHON = 1
 FRAME_KIND_DJANGO = 2
 
-def cmd(cmd_str):
-    if sys.version >= '3.0':
-        return bytes(cmd_str, 'ascii')
-    return cmd_str
-
 if sys.version[0] == '3':
   # work around a crashing bug on CPython 3.x where they take a hard stack overflow
   # we'll never see this exception but it'll allow us to keep our try/except handler
@@ -125,36 +163,26 @@ if sys.version[0] == '3':
 else:
   StackOverflowException = RuntimeError
   
-# we can't run the importer at some random point because we might be importing 
-# something complete with the loader lock held.  Therefore we eagerly run a UTF8
-# decode here so that any required imports for it to succeed later have already
-# been imported.
-
-cmd('').decode('utf8')
-''.encode('utf8') # just in case they differ in what they import...
-
-ASBR = cmd('ASBR')
-SETL = cmd('SETL')
-THRF = cmd('THRF')
-DETC = cmd('DETC')
-NEWT = cmd('NEWT')
-EXTT = cmd('EXTT')
-EXIT = cmd('EXIT')
-EXCP = cmd('EXCP')
-MODL = cmd('MODL')
-STPD = cmd('STPD')
-BRKS = cmd('BRKS')
-BRKF = cmd('BRKF')
-BRKH = cmd('BRKH')
-LOAD = cmd('LOAD')
-EXCE = cmd('EXCE')
-EXCR = cmd('EXCR')
-CHLD = cmd('CHLD')
-OUTP = cmd('OUTP')
-REQH = cmd('REQH')
-UNICODE_PREFIX = cmd('U')
-ASCII_PREFIX = cmd('A')
-NONE_PREFIX = cmd('N')
+ASBR = to_bytes('ASBR')
+SETL = to_bytes('SETL')
+THRF = to_bytes('THRF')
+DETC = to_bytes('DETC')
+NEWT = to_bytes('NEWT')
+EXTT = to_bytes('EXTT')
+EXIT = to_bytes('EXIT')
+EXCP = to_bytes('EXCP')
+MODL = to_bytes('MODL')
+STPD = to_bytes('STPD')
+BRKS = to_bytes('BRKS')
+BRKF = to_bytes('BRKF')
+BRKH = to_bytes('BRKH')
+LOAD = to_bytes('LOAD')
+EXCE = to_bytes('EXCE')
+EXCR = to_bytes('EXCR')
+CHLD = to_bytes('CHLD')
+OUTP = to_bytes('OUTP')
+REQH = to_bytes('REQH')
+LAST = to_bytes('LAST')
 
 def get_thread_from_id(id):
     THREADS_LOCK.acquire()
@@ -164,7 +192,9 @@ def get_thread_from_id(id):
         THREADS_LOCK.release()
 
 def should_send_frame(frame):
-    return frame is not None and frame.f_code not in (get_code(debug), get_code(execfile), get_code(new_thread_wrapper))
+    return (frame is not None and 
+            frame.f_code not in (get_code(debug), get_code(exec_file), get_code(new_thread_wrapper)) and
+            frame.f_code.co_filename not in DONT_DEBUG)
 
 def lookup_builtin(name, frame):
     try:
@@ -256,7 +286,7 @@ class ExceptionBreakInfo(object):
                     self.handler_lock.acquire()
                 
                     with _SendLockCtx:
-                        conn.send(REQH)
+                        write_bytes(conn, REQH)
                         write_string(conn, cur_frame.f_code.co_filename)
 
                     # wait for the handler data to be received
@@ -288,9 +318,6 @@ class ExceptionBreakInfo(object):
         return False
     
     def AddException(self, name, mode=BREAK_MODE_UNHANDLED):
-        if sys.version_info[0] >= 3 and name.startswith('exceptions.'):
-            name = 'builtins' + name[10:]
-        
         self.break_on[name] = mode
 
 BREAK_ON = ExceptionBreakInfo()
@@ -305,11 +332,21 @@ def probe_stack(depth = 10):
 
 # specifies list of files not to debug, can be added to externally (the REPL does this
 # for $attach support and not stepping into the REPL)
- 
-DONT_DEBUG = [__file__]
+
+if sys.version_info >= (3, 3):
+    DONT_DEBUG = [__file__, _vspu.__file__, '<frozen importlib._bootstrap>']
+else:
+    DONT_DEBUG = [__file__, _vspu.__file__]
+PREFIXES = [sys.prefix]
+if hasattr(sys, 'real_prefix'):
+    # we're running in a virtual env, DEBUG_STDLIB should respect this too.
+    PREFIXES.append(sys.real_prefix)
+
 def should_debug_code(code):
-    if not DEBUG_STDLIB and code.co_filename.startswith(sys.prefix):
-        return False
+    if not DEBUG_STDLIB:
+        for prefix in PREFIXES:
+            if code.co_filename.startswith(prefix):
+                return False
 
     filename = code.co_filename
     for dont_debug_file in DONT_DEBUG:
@@ -322,14 +359,35 @@ attach_lock = thread.allocate()
 attach_sent_break = False
 
 
-def filename_is_same(win_path, local_path):
-    import ntpath
-    if ntpath.isabs(win_path) and path.isabs(local_path):
-        return path.normcase(win_path) == path.normcase(local_path)
-    return path.normcase(ntpath.basename(win_path)) == path.normcase(path.basename(local_path))
+local_path_to_vs_path = {}
+
+def breakpoint_path_match(vs_path, local_path):
+    vs_path_norm = path.normcase(vs_path)
+    local_path_norm = path.normcase(local_path)
+    if local_path_to_vs_path.get(local_path_norm) == vs_path_norm:
+        return True
+    
+    # Walk the local filesystem from local_path up, matching agains win_path component by component,
+    # and stop when we no longer see an __init__.py. This should give a reasonably close approximation
+    # of matching the package name.
+    while True:
+        local_path, local_name = path.split(local_path)
+        vs_path, vs_name = ntpath.split(vs_path)
+        # Match the last component in the path. If one or both components are unavailable, then
+        # we have reached the root on the corresponding path without successfully matching.
+        if not local_name or not vs_name or path.normcase(local_name) != path.normcase(vs_name):
+            return False
+        # If we have an __init__.py, this module was inside the package, and we still need to match
+        # thatpackage, so walk up one level and keep matching. Otherwise, we've walked as far as we
+        # needed to, and matched all names on our way, so this is a match.
+        if not path.exists(path.join(local_path, '__init__.py')):
+            break
+    
+    local_path_to_vs_path[local_path_norm] = vs_path_norm
+    return True
 
 
-def update_all_thread_stacks(blocking_thread):
+def update_all_thread_stacks(blocking_thread = None, check_is_blocked = True):
     THREADS_LOCK.acquire()
     all_threads = list(THREADS.values())
     THREADS_LOCK.release()
@@ -339,7 +397,7 @@ def update_all_thread_stacks(blocking_thread):
             continue
             
         cur_thread._block_starting_lock.acquire()
-        if not cur_thread._is_blocked:
+        if not check_is_blocked or not cur_thread._is_blocked:
             # release the lock, we're going to run user code to evaluate the frames
             cur_thread._block_starting_lock.release()        
                             
@@ -348,7 +406,7 @@ def update_all_thread_stacks(blocking_thread):
             # re-acquire the lock and make sure we're still not blocked.  If so send
             # the frame list.
             cur_thread._block_starting_lock.acquire()
-            if not cur_thread._is_blocked:
+            if not check_is_blocked or not cur_thread._is_blocked:
                 cur_thread.send_frame_list(frames)
     
         cur_thread._block_starting_lock.release()
@@ -371,7 +429,7 @@ class DjangoBreakpointInfo(object):
         if self._line_locations is None:
             # we need to calculate our line number offset information
             try:
-                contents = file(self.filename, 'r')
+                contents = file(self.filename, 'rb')
                 line_info = []
                 file_len = 0
                 for line in contents:
@@ -456,6 +514,35 @@ class Thread(object):
         self.trace_func_stack = []
         self.reported_process_loaded = False
         self.django_stepping = None
+        self.is_sending = False
+
+        # stackless changes
+        if stackless is not None:
+            stackless.set_schedule_callback(self.context_dispatcher)
+            # the tasklets need to be traced on a case by case basis
+            # sys.trace needs to be called within their calling context
+            def __call__(tsk, *args, **kwargs):
+                f = tsk.tempval
+                def new_f(old_f, args, kwargs):
+                    sys.settrace(self.trace_func)
+                    try:
+                        if old_f is not None:
+                            return old_f(*args, **kwargs)
+                    finally:
+                        sys.settrace(None)
+
+                tsk.tempval = new_f
+                stackless.tasklet.setup(tsk, f, args, kwargs)
+                return tsk
+    
+            def settrace(tsk, tb):
+                if hasattr(tsk.frame, "f_trace"):
+                    tsk.frame.f_trace = tb
+                sys.settrace(tb)
+
+            self.__oldstacklesscall__ = stackless.tasklet.__call__
+            stackless.tasklet.settrace = settrace
+            stackless.tasklet.__call__ = __call__
         if sys.platform == 'cli':
             self.frames = []
     
@@ -476,18 +563,48 @@ class Thread(object):
         def pop_frame(self):
             self.cur_frame = self.cur_frame.f_back
 
+    def context_dispatcher(self, old, new):
+        self.stepping = STEPPING_NONE
+        # for those tasklets that started before we started tracing
+        # we need to make sure that the trace is set by patching
+        # it in the context switch
+        if not old:
+            pass # starting new
+        elif not new:
+            pass # killing prev
+        else:
+            if hasattr(new.frame, "f_trace") and not new.frame.f_trace:
+                sys.call_tracing(new.settrace,(self.trace_func,))
+
     def trace_func(self, frame, event, arg):
         # If we're so far into process shutdown that sys is already gone, just stop tracing.
         if sys is None:
             return None
+        elif self.is_sending:
+            # https://pytools.codeplex.com/workitem/1864 
+            # we're currently doing I/O w/ the socket, we don't want to deliver
+            # any breakpoints or async breaks because we'll deadlock.  Continue
+            # to return the trace function so all of our frames remain
+            # balanced.  A better way to deal with this might be to do
+            # sys.settrace(None) when we take the send lock, but that's much
+            # more difficult because our send context manager is used both
+            # inside and outside of the trace function, and so is used when
+            # tracing is enabled and disabled, and so it's very easy to get our
+            # current frame tracking to be thrown off...
+            return self.trace_func
 
         try:
+            # if should_debug_code(frame.f_code) is not true during attach
+            # the current frame is None and a pop_frame will cause an exception and 
+            # break the debugger
+            if self.cur_frame is None:
+                # happens during attach, we need frame for blocking
+                self.push_frame(frame)
             if self.stepping == STEPPING_BREAK and should_debug_code(frame.f_code):
-                if self.cur_frame is None:
-                    # happens during attach, we need frame for blocking
-                    self.push_frame(frame)
-
                 if self.detach:
+                    if stackless is not None:
+                        stackless.set_schedule_callback(None)
+                        stackless.tasklet.__call__ = self.__oldstacklesscall__
                     sys.settrace(None)
                     return None
 
@@ -513,7 +630,7 @@ class Thread(object):
                     if should_break:
                         probe_stack()
                         update_all_thread_stacks(self)
-                        self.block(lambda: (report_breakpoint_hit(bkpt_id, self.id), mark_all_threads_for_break()))
+                        self.block(lambda: (report_breakpoint_hit(bkpt_id, self.id), mark_all_threads_for_break(skip_thread = self)))
                 if not should_break and self.django_stepping:
                     self.django_stepping = None
                     self.stepping = STEPPING_OVER
@@ -534,13 +651,13 @@ class Thread(object):
                 PENDING_BREAKPOINTS -= bound
 
         stepping = self.stepping
-        if stepping is not STEPPING_NONE:
+        if stepping is not STEPPING_NONE and should_debug_code(frame.f_code):
             if stepping == STEPPING_INTO:
                 # block when we hit the 1st line, not when we're on the function def
                 self.stepping = STEPPING_OVER
                 # empty stopped_on_line so that we will break even if it is
                 # the same line
-                self.stopped_on_line = None            
+                self.stopped_on_line = None
             elif stepping >= STEPPING_OVER:
                 self.stepping += 1
             elif stepping <= STEPPING_OUT:
@@ -562,32 +679,46 @@ class Thread(object):
 
         return self.trace_func
         
+    def should_block_on_frame(self, frame):
+        if not should_debug_code(frame.f_code):
+            return False
+        
+        # walk up our frames and make sure no debugger code is on the stack
+        while frame is not None:
+            if is_same_py_file(frame.f_code.co_filename, __file__):
+                if frame.f_code.co_name == 'debug' or frame.f_code.co_name == 'new_thread_wrapper':
+                    # our top-level functions
+                    break
+                # something like our stdout writer, don't block below here
+                return False
+            frame = frame.f_back
+        return True
+
     def handle_line(self, frame, arg):
         if not DETACHED:
+            # resolve whether step_complete and/or handling_breakpoints
+            step_complete = False
+            handle_breakpoints = True
             stepping = self.stepping
-
-            # http://pytools.codeplex.com/workitem/815
-            # if we block for a step into/over we don't want to block again for a breakpoint
-            blocked_for_stepping = False
-
             if stepping is not STEPPING_NONE:   # check for the common case of no stepping first...
-                if (((stepping == STEPPING_OVER or stepping == STEPPING_INTO) and frame.f_lineno != self.stopped_on_line) 
-                    or stepping == STEPPING_LAUNCH_BREAK 
-                    or stepping == STEPPING_ATTACH_BREAK):
-                    if ((stepping == STEPPING_LAUNCH_BREAK and not MODULES) or                        
-                        not should_debug_code(frame.f_code)):  # don't break into our own debugger / non-user code
-                        # don't break into inital Python code needed to set things up
-                        return self.trace_func
-                    
-                    blocked_for_stepping = stepping != STEPPING_LAUNCH_BREAK and stepping != STEPPING_ATTACH_BREAK
-                    self.block_maybe_attach()
+                if ((stepping == STEPPING_OVER or stepping == STEPPING_INTO) and frame.f_lineno != self.stopped_on_line):
+                    if self.should_block_on_frame(frame):   # don't step complete in our own debugger / non-user code
+                        step_complete = True
+                elif stepping == STEPPING_LAUNCH_BREAK or stepping == STEPPING_ATTACH_BREAK:
+                    if ((stepping == STEPPING_LAUNCH_BREAK and not MODULES) or
+                        not self.should_block_on_frame(frame)): # don't break into inital Python code needed to set things up
+                        handle_breakpoints = False
+                    else:
+                        step_complete = True
 
-            if BREAKPOINTS and blocked_for_stepping is False:
+            # handle breakpoints
+            hit_bp_id = None
+            if BREAKPOINTS and handle_breakpoints:
                 bp = BREAKPOINTS.get(frame.f_lineno)
                 if bp is not None:
                     for (filename, bp_id), (condition, bound) in bp.items():
-                        if filename == frame.f_code.co_filename or (not bound and filename_is_same(filename, frame.f_code.co_filename)):   
-                            if condition:                            
+                        if filename == frame.f_code.co_filename or (not bound and breakpoint_path_match(filename, frame.f_code.co_filename)):
+                            if condition:
                                 try:
                                     res = eval(condition.condition, frame.f_globals, frame.f_locals)
                                     if condition.break_when_changed:
@@ -601,10 +732,18 @@ class Thread(object):
                                 block = True
 
                             if block:
-                                probe_stack()
-                                update_all_thread_stacks(self)
-                                self.block(lambda: (report_breakpoint_hit(bp_id, self.id), mark_all_threads_for_break()))
-                            break
+                                hit_bp_id = bp_id
+                                break
+
+            if hit_bp_id is not None:
+                # handle case where both hitting a breakpoint and step complete by reporting the breakpoint
+                # if the reported breakpoint is a tracepoint, report the step complete if/when the tracepoint is auto-resumed
+                probe_stack()
+                update_all_thread_stacks(self)
+                self.block(lambda: (report_breakpoint_hit(hit_bp_id, self.id), mark_all_threads_for_break(skip_thread = self)), step_complete)
+
+            elif step_complete:
+                self.block_maybe_attach()
 
         # forward call to previous trace function, if any, updating trace function appropriately
         old_trace_func = self.prev_trace_func
@@ -619,23 +758,28 @@ class Thread(object):
 
         if not DETACHED:
             stepping = self.stepping
-            if stepping is not STEPPING_NONE:
+            # only update stepping state when this frame is debuggable (matching handle_call)
+            if stepping is not STEPPING_NONE and should_debug_code(frame.f_code):
                 if stepping > STEPPING_OVER:
                     self.stepping -= 1
                 elif stepping < STEPPING_OUT:
                     self.stepping += 1
-                elif stepping in USER_STEPPING and should_debug_code(frame.f_code):
+                elif stepping in USER_STEPPING:
                     if self.cur_frame is None or frame.f_code.co_name == "<module>" :
-                        # restore back the module frame for the step out of a module
-                        self.push_frame(ModuleExitFrame(frame))
+                        # only return to user code modules
+                        if self.should_block_on_frame(frame):
+                            # restore back the module frame for the step out of a module
+                            self.push_frame(ModuleExitFrame(frame))
+                            self.stepping = STEPPING_NONE
+                            update_all_thread_stacks(self)
+                            self.block(lambda: (report_step_finished(self.id), mark_all_threads_for_break(skip_thread = self)))
+                            self.pop_frame()
+                    elif self.should_block_on_frame(self.cur_frame):
+                        # if we're returning into non-user code then don't block in the
+                        # non-user code, wait until we hit user code again
                         self.stepping = STEPPING_NONE
                         update_all_thread_stacks(self)
-                        self.block(lambda: report_step_finished(self.id))
-                        self.pop_frame()
-                    else:
-                        self.stepping = STEPPING_NONE
-                        update_all_thread_stacks(self)
-                        self.block(lambda: report_step_finished(self.id))
+                        self.block(lambda: (report_step_finished(self.id), mark_all_threads_for_break(skip_thread = self)))
 
         # forward call to previous trace function, if any
         old_trace_func = self.prev_trace_func
@@ -692,7 +836,8 @@ class Thread(object):
         def block_cond():
             if will_block_now:
                 if stepping == STEPPING_OVER or stepping == STEPPING_INTO:
-                    return report_step_finished(self.id)
+                    report_step_finished(self.id)
+                    return mark_all_threads_for_break(skip_thread = self)
                 else:
                     if not DETACHED:
                         if stepping == STEPPING_ATTACH_BREAK:
@@ -710,7 +855,7 @@ class Thread(object):
                     # multiple threads could be sending this...
                     SEND_BREAK_COMPLETE = False
                     sent_break_complete = True
-                    conn.send(ASBR)
+                    write_bytes(conn, ASBR)
                     write_int(conn, self.id)
 
             if sent_break_complete:
@@ -722,7 +867,7 @@ class Thread(object):
         self.stepping = STEPPING_NONE
         self.block(async_break_send)
 
-    def block(self, block_lambda):
+    def block(self, block_lambda, keep_stopped_on_line = False):
         """blocks the current thread until the debugger resumes it"""
         assert not self._is_blocked
         #assert self.id == thread.get_ident(), 'wrong thread identity' + str(self.id) + ' ' + str(thread.get_ident())    # we should only ever block ourselves
@@ -730,7 +875,9 @@ class Thread(object):
         # send thread frames before we block
         self.enum_thread_frames_locally()
         
-        self.stopped_on_line = self.cur_frame.f_lineno
+        if not keep_stopped_on_line:
+            self.stopped_on_line = self.cur_frame.f_lineno
+
         # need to synchronize w/ sending the reason we're blocking
         self._block_starting_lock.acquire()
         self._is_blocked = True
@@ -831,8 +978,12 @@ class Thread(object):
             code = self.compile(text, cur_frame)
             res = eval(code, cur_frame.f_globals, self.get_locals(cur_frame, frame_kind))
             self.locals_to_fast(cur_frame)
+            # Report any updated variable values first
+            self.enum_thread_frames_locally()
             report_execution_result(execution_id, res)
         except:
+            # Report any updated variable values first
+            self.enum_thread_frames_locally()
             report_execution_exception(execution_id, sys.exc_info())
 
     def run_locally_no_report(self, text, cur_frame, frame_kind):
@@ -949,37 +1100,33 @@ class Thread(object):
                     else:
                         lineno += ord(line_incr)
 
-            source_obj = None
             frame_locals = cur_frame.f_locals
+            var_names = cur_frame.f_code.co_varnames
+
+            source_obj = None
             if DJANGO_DEBUG:
                 source_obj = get_django_frame_source(cur_frame)
                 if source_obj is not None:
                     frame_locals = self.get_locals(cur_frame, FRAME_KIND_DJANGO)
+                    var_names = frame_locals
 
-            if source_obj is not None:
+            process_globals_in_functions = True
+            if source_obj is None and frame_locals is cur_frame.f_globals:
                 var_names = frame_locals
-            elif frame_locals is cur_frame.f_globals:
-                var_names = cur_frame.f_globals
-            else:
-                var_names = cur_frame.f_code.co_varnames
-                        
+                process_globals_in_functions = False
+
+            # collect frame locals
             vars = []
-            for var_name in var_names:
-                try:
-                    obj = frame_locals[var_name]
-                except:
-                    obj = '<undefined>'
-                try:
-                    if sys.version[0] == '2' and type(obj) is types.InstanceType:
-                        type_name = "instance (" + obj.__class__.__name__ + ")"
-                    else:
-                        type_name = type(obj).__name__
-                except:
-                    type_name = 'unknown'
-                    
-                vars.append((var_name, type(obj), safe_repr(obj), safe_hex_repr(obj), type_name, get_object_len(obj)))
-                
-        
+            treated = set()
+            self.collect_variables(vars, frame_locals, var_names, treated)
+            if process_globals_in_functions:
+                # collect closed over variables used locally (frame_locals not already treated based on var_names)
+                self.collect_variables(vars, frame_locals, frame_locals, treated)
+                # collect globals used locally, skipping undefined found in builtins
+                f_globals = cur_frame.f_globals
+                if f_globals: # ensure globals to work with (IPy may have None for cur_frame.f_globals for frames within stdlib)
+                    self.collect_variables(vars, f_globals, cur_frame.f_code.co_names, treated, f_globals.get('__builtins__', None))
+            
             frame_info = None
 
             if source_obj is not None:
@@ -1026,9 +1173,39 @@ class Thread(object):
                         
         return frames
 
+    
+    def collect_variables(self, vars, objects, names, treated, builtins = None):
+        for name in names:
+            if name not in treated:
+                try:
+                    obj = objects[name]
+                    try:
+                        if sys.version[0] == '2' and type(obj) is types.InstanceType:
+                            type_name = "instance (" + obj.__class__.__name__ + ")"
+                        else:
+                            type_name = type(obj).__name__
+                    except:
+                        type_name = 'unknown'
+                except:
+                    # skip undefined, if builtin
+                    if builtins:
+                        if isinstance(builtins, dict):
+                            # handle builtins for imported modules (dictionary elements)
+                            if name in builtins:
+                                continue
+                        else:
+                            # handle builtins for '__main__' module (module attributes)
+                            if hasattr(builtins, name):
+                                continue
+                            
+                    obj = '<undefined>'
+                    type_name = 'unknown'
+                vars.append((name, type(obj), safe_repr(obj), safe_hex_repr(obj), type_name, get_object_len(obj)))
+                treated.add(name)
+
     def send_frame_list(self, frames, thread_name = None):
         with _SendLockCtx:
-            conn.send(THRF)
+            write_bytes(conn, THRF)
             write_int(conn, self.id)
             write_string(conn, thread_name)
         
@@ -1118,9 +1295,11 @@ class PendingBreakPoint(object):
 
 PENDING_BREAKPOINTS = set()
 
-def mark_all_threads_for_break(stepping = STEPPING_BREAK):
+def mark_all_threads_for_break(stepping = STEPPING_BREAK, skip_thread = None):
     THREADS_LOCK.acquire()
     for thread in THREADS.values():
+        if thread is skip_thread:
+            continue
         thread.stepping = stepping
     THREADS_LOCK.release()
 
@@ -1133,32 +1312,34 @@ class DebuggerLoop(object):
         self.conn = conn
         self.repl_backend = None
         self.command_table = {
-            cmd('stpi') : self.command_step_into,
-            cmd('stpo') : self.command_step_out,
-            cmd('stpv') : self.command_step_over,
-            cmd('brkp') : self.command_set_breakpoint,
-            cmd('brkc') : self.command_set_breakpoint_condition,
-            cmd('brkr') : self.command_remove_breakpoint,
-            cmd('brka') : self.command_break_all,
-            cmd('resa') : self.command_resume_all,
-            cmd('rest') : self.command_resume_thread,
-            cmd('exec') : self.command_execute_code,
-            cmd('chld') : self.command_enum_children,
-            cmd('setl') : self.command_set_lineno,
-            cmd('detc') : self.command_detach,
-            cmd('clst') : self.command_clear_stepping,
-            cmd('sexi') : self.command_set_exception_info,
-            cmd('sehi') : self.command_set_exception_handler_info,
-            cmd('bkdr') : self.command_remove_django_breakpoint,
-            cmd('bkda') : self.command_add_django_breakpoint,
-            cmd('crep') : self.command_connect_repl,
-            cmd('drep') : self.command_disconnect_repl,
+            to_bytes('stpi') : self.command_step_into,
+            to_bytes('stpo') : self.command_step_out,
+            to_bytes('stpv') : self.command_step_over,
+            to_bytes('brkp') : self.command_set_breakpoint,
+            to_bytes('brkc') : self.command_set_breakpoint_condition,
+            to_bytes('brkr') : self.command_remove_breakpoint,
+            to_bytes('brka') : self.command_break_all,
+            to_bytes('resa') : self.command_resume_all,
+            to_bytes('rest') : self.command_resume_thread,
+            to_bytes('ares') : self.command_auto_resume,
+            to_bytes('exec') : self.command_execute_code,
+            to_bytes('chld') : self.command_enum_children,
+            to_bytes('setl') : self.command_set_lineno,
+            to_bytes('detc') : self.command_detach,
+            to_bytes('clst') : self.command_clear_stepping,
+            to_bytes('sexi') : self.command_set_exception_info,
+            to_bytes('sehi') : self.command_set_exception_handler_info,
+            to_bytes('bkdr') : self.command_remove_django_breakpoint,
+            to_bytes('bkda') : self.command_add_django_breakpoint,
+            to_bytes('crep') : self.command_connect_repl,
+            to_bytes('drep') : self.command_disconnect_repl,
+            to_bytes('lack') : self.command_last_ack,
         }
 
     def loop(self):
         try:
             while True:
-                inp = conn.recv(4)
+                inp = read_bytes(conn, 4)
                 cmd = self.command_table.get(inp)
                 if cmd is not None:
                     cmd()
@@ -1177,6 +1358,7 @@ class DebuggerLoop(object):
         tid = read_int(self.conn)
         thread = get_thread_from_id(tid)
         if thread is not None:
+            assert thread._is_blocked
             thread.stepping = STEPPING_INTO
             self.command_resume_all()
 
@@ -1184,6 +1366,7 @@ class DebuggerLoop(object):
         tid = read_int(self.conn)
         thread = get_thread_from_id(tid)
         if thread is not None:
+            assert thread._is_blocked
             thread.stepping = STEPPING_OUT
             self.command_resume_all()
     
@@ -1192,6 +1375,7 @@ class DebuggerLoop(object):
         tid = read_int(self.conn)
         thread = get_thread_from_id(tid)
         if thread is not None:
+            assert thread._is_blocked
             if DJANGO_DEBUG:
                 source_obj = get_django_frame_source(thread.cur_frame)
                 if source_obj is not None:
@@ -1310,7 +1494,19 @@ class DebuggerLoop(object):
             self.command_resume_all()
         else:
             thread.unblock()
-    
+
+    def command_auto_resume(self):
+        tid = read_int(self.conn)
+        THREADS_LOCK.acquire()
+        thread = THREADS[tid]
+        THREADS_LOCK.release()
+
+        stepping = thread.stepping
+        if ((stepping == STEPPING_OVER or stepping == STEPPING_INTO) and thread.cur_frame.f_lineno != thread.stopped_on_line): 
+            report_step_finished(tid)
+        else:
+            self.command_resume_all()
+
     def command_set_exception_info(self):
         BREAK_ON.Clear()
         BREAK_ON.default_mode = read_int(self.conn)
@@ -1362,13 +1558,13 @@ class DebuggerLoop(object):
             newline = THREADS[tid].cur_frame.f_lineno
             THREADS_LOCK.release()
             with _SendLockCtx:
-                self.conn.send(SETL)
+                write_bytes(self.conn, SETL)
                 write_int(self.conn, 1)
                 write_int(self.conn, tid)
                 write_int(self.conn, newline)
         except:
             with _SendLockCtx:
-                self.conn.send(SETL)
+                write_bytes(self.conn, SETL)
                 write_int(self.conn, 0)
                 write_int(self.conn, tid)
                 write_int(self.conn, 0)
@@ -1427,8 +1623,7 @@ class DebuggerLoop(object):
             debugger_dll_handle = None
 
         with _SendLockCtx:
-            conn.send(DETC)
-
+            write_bytes(conn, DETC)
             detach_process()        
 
         for callback in DETACH_CALLBACKS:
@@ -1436,6 +1631,8 @@ class DebuggerLoop(object):
         
         raise DebuggerExitException()
 
+    def command_last_ack(self):
+        last_ack_event.set()
 
 DETACH_CALLBACKS = []
 
@@ -1453,54 +1650,23 @@ def new_thread_wrapper(func, *posargs, **kwargs):
         if not DETACHED:
             report_thread_exit(cur_thread)
 
-def write_string(conn, string):
-    if string is None:
-        conn.send(NONE_PREFIX)
-    elif isinstance(string, unicode):
-        bytes = string.encode('utf8')
-        bytes_len = len(bytes)
-        conn.send(UNICODE_PREFIX)
-        write_int(conn, len(bytes))
-        if bytes_len > 0:
-            conn.send(bytes)
-    else:
-        string_len = len(string)
-        conn.send(ASCII_PREFIX)
-        write_int(conn, string_len)
-        if string_len > 0:
-            conn.send(string)
-
-def read_string(conn):
-    str_len = read_int(conn)
-    if not str_len:
-        return ''
-    res = cmd('')
-    while len(res) < str_len:
-        res = res + conn.recv(str_len - len(res))
-    return res.decode('utf8')
-
-def read_int(conn):
-    return struct.unpack('!q', conn.recv(8))[0]
-
-def write_int(conn, i):
-    conn.send(struct.pack('!q', i))
-
 def report_new_thread(new_thread):
     ident = new_thread.id
     with _SendLockCtx:
-        conn.send(NEWT)
+        write_bytes(conn, NEWT)
         write_int(conn, ident)
 
 def report_all_threads():
     THREADS_LOCK.acquire()
-    for cur_thread in THREADS.values():
-        report_new_thread(cur_thread)
+    all_threads = list(THREADS.values())
     THREADS_LOCK.release()
+    for cur_thread in all_threads:
+        report_new_thread(cur_thread)
 
 def report_thread_exit(old_thread):
     ident = old_thread.id
     with _SendLockCtx:
-        conn.send(EXTT)
+        write_bytes(conn, EXTT)
         write_int(conn, ident)
 
 def report_exception(frame, exc_info, tid, break_type):
@@ -1517,7 +1683,7 @@ def report_exception(frame, exc_info, tid, break_type):
     excp_text = str(exc_value)
 
     with _SendLockCtx:
-        conn.send(EXCP)
+        write_bytes(conn, EXCP)
         write_string(conn, exc_name)
         write_int(conn, tid)
         write_int(conn, break_type)
@@ -1531,39 +1697,39 @@ def new_module(frame):
 
 def report_module_load(mod):
     with _SendLockCtx:
-        conn.send(MODL)
+        write_bytes(conn, MODL)
         write_int(conn, mod.module_id)
         write_string(conn, mod.filename)
 
 def report_step_finished(tid):
     with _SendLockCtx:
-        conn.send(STPD)
+        write_bytes(conn, STPD)
         write_int(conn, tid)
 
 def report_breakpoint_bound(id):
     with _SendLockCtx:
-        conn.send(BRKS)
+        write_bytes(conn, BRKS)
         write_int(conn, id)
 
 def report_breakpoint_failed(id):
     with _SendLockCtx:
-        conn.send(BRKF)
+        write_bytes(conn, BRKF)
         write_int(conn, id)
 
 def report_breakpoint_hit(id, tid):    
     with _SendLockCtx:
-        conn.send(BRKH)
+        write_bytes(conn, BRKH)
         write_int(conn, id)
         write_int(conn, tid)
 
 def report_process_loaded(tid):
     with _SendLockCtx:
-        conn.send(LOAD)
+        write_bytes(conn, LOAD)
         write_int(conn, tid)
 
 def report_execution_error(exc_text, execution_id):
     with _SendLockCtx:
-        conn.send(EXCE)
+        write_bytes(conn, EXCE)
         write_int(conn, execution_id)
         write_string(conn, exc_text)
 
@@ -1574,12 +1740,6 @@ def report_execution_exception(execution_id, exc_info):
         exc_text = 'An exception was thrown'
 
     report_execution_error(exc_text, execution_id)
-
-def safe_repr(obj):
-    try:
-        return repr(obj)
-    except:
-        return '__repr__ raised an exception'
 
 def safe_hex_repr(obj):
     try:
@@ -1601,7 +1761,7 @@ def report_execution_result(execution_id, result):
     obj_len = get_object_len(result)
 
     with _SendLockCtx:
-        conn.send(EXCR)
+        write_bytes(conn, EXCR)
         write_int(conn, execution_id)
         write_object(conn, res_type, obj_repr, hex_repr, type_name, obj_len)
 
@@ -1610,7 +1770,7 @@ def report_children(execution_id, attributes, indices, indices_are_index, indice
     indices = [(index, safe_repr(result), safe_hex_repr(result), type(result), type(result).__name__, get_object_len(result)) for index, result in indices]
 
     with _SendLockCtx:
-        conn.send(CHLD)
+        write_bytes(conn, CHLD)
         write_int(conn, execution_id)
         write_int(conn, len(attributes))
         write_int(conn, len(indices))
@@ -1639,18 +1799,6 @@ def write_object(conn, obj_type, obj_repr, hex_repr, type_name, obj_len):
         write_int(conn, 0)
     else:
         write_int(conn, 1)
-
-
-try:
-    execfile
-except NameError:
-    # Py3k, execfile no longer exists
-    def execfile(file, globals, locals): 
-        f = open(file, "rb")
-        try:
-            exec(compile(f.read().replace(cmd('\r\n'), cmd('\n')), file, 'exec'), globals, locals) 
-        finally:
-            f.close()
 
 
 debugger_thread_id = -1
@@ -1697,11 +1845,12 @@ def attach_process_from_socket(sock, report = False, block = False):
 
     if report:
         THREADS_LOCK.acquire()
+        all_threads = list(THREADS.values())
         if block:
             main_thread = THREADS[thread.get_ident()]
-        for cur_thread in THREADS.values():
-            report_new_thread(cur_thread)
         THREADS_LOCK.release()
+        for cur_thread in all_threads:
+            report_new_thread(cur_thread)
 
         for filename, module in MODULES:
             report_module_load(module)
@@ -1754,7 +1903,10 @@ def detach_process():
 def detach_threads():
     # tell all threads to stop tracing...
     THREADS_LOCK.acquire()
-    for tid, pyThread in THREADS.items():
+    all_threads = list(THREADS.items())
+    THREADS_LOCK.release()
+
+    for tid, pyThread in all_threads:
         if not _INTERCEPTING_FOR_ATTACH:
             pyThread.detach = True
             pyThread.stepping = STEPPING_BREAK
@@ -1763,11 +1915,11 @@ def detach_threads():
             pyThread.unblock()
 
     if not _INTERCEPTING_FOR_ATTACH:
+        THREADS_LOCK.acquire()
         THREADS.clear()
+        THREADS_LOCK.release()
         
     BREAKPOINTS.clear()
-
-    THREADS_LOCK.release()
 
 def new_thread(tid = None, set_break = False, frame = None):
     # called during attach w/ a thread ID provided.
@@ -1835,7 +1987,7 @@ class _DebuggerOutput(object):
         if not DETACHED:
             probe_stack(3)
             with _SendLockCtx:
-                conn.send(OUTP)
+                write_bytes(conn, OUTP)
                 write_int(conn, thread.get_ident())
                 write_string(conn, value)
         if self.old_out:
@@ -1861,9 +2013,9 @@ class DebuggerBuffer(object):
     def write(self, data):
         if not DETACHED:
             probe_stack(3)
-            str_data = data.decode('utf8')
+            str_data = utf_8.decode(data)[0]
             with _SendLockCtx:
-                conn.send(OUTP)
+                write_bytes(conn, OUTP)
                 write_int(conn, thread.get_ident())
                 write_string(conn, str_data)
         self.buffer.write(data)
@@ -1952,13 +2104,24 @@ def debug(file, port_num, debug_id, globals_obj, locals_obj, wait_on_exception, 
     # now execute main file
     try:
         try:
-            execfile(file, globals_obj, locals_obj)
+            exec_file(file, globals_obj)
         finally:
             sys.settrace(None)
             THREADS_LOCK.acquire()
             del THREADS[cur_thread.id]
             THREADS_LOCK.release()
             report_thread_exit(cur_thread)
+
+            # Give VS debugger a chance to process commands
+            # by waiting for ack of "last" command
+            global threading
+            if threading is None:
+                import threading
+            global last_ack_event
+            last_ack_event = threading.Event()
+            with _SendLockCtx:
+                write_bytes(conn, LAST)
+            last_ack_event.wait(5)
 
         if wait_on_exit:
             do_wait()
