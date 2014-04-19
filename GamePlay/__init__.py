@@ -113,7 +113,7 @@ class GEScenario( CBaseScenario ):
         hurt trigger.
         weapon -- (None,CBaseEntity or CGEMPPlayer) Will only be none when the victim is killed
         by a map hurt trigger. Will be a CGEMPPlayer object when the victim is killed by
-        CGEMPPlayer.CommitSuicide(). Type check: if type( weapon ) is GEWeapon.CGEWeapon:
+        CGEMPPlayer.CommitSuicide(). Type check: if type( weapon ) is GEEntity.CBaseEntity:
         """
         if not victim:
             return
