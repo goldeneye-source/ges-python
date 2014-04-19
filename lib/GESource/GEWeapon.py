@@ -16,140 +16,142 @@
 # along with goldeneye: source's python library.
 # if not, see <http://www.gnu.org/licenses/>.
 #############################################################################
-import geentity
+import GEEntity
 
-def togeweapon( entity ):
+def ToGEWeapon( entity ):
     '''
-    entity -- geentity.cbaseentity
+    entity -- GEEntity.CBaseEntity
     '''
-    return cgeweapon
+    return CGEWeapon
 
-def weaponammotype( weap_name_or_id ):
+def WeaponAmmoType( weap_name_or_id ):
     '''
-    gets the ammo name for the given weapon id or classname
+    Gets the ammo name for the given weapon id or classname
     
     weap_name_or_id -- int or str
     '''
     return str
 
-def weaponclassname( weap_id ):
+def WeaponClassname( weap_id ):
     '''
-    gets the classname for the given weapon id
+    Gets the class name for the given weapon id
     
     weap_id -- int
     '''
     return str
 
-def weaponprintname( weap_name_or_id ):
+def WeaponPrintName( weap_name_or_id ):
     '''
-    gets the print name for the given weapon id or classname
+    Gets the print name for the given weapon id or classname
     
     weap_name_or_id -- int or str
     '''
     return str
 
-def weaponinfo( weap_name_or_id, owner=none ):
+def WeaponInfo( weap_name_or_id, owner=none ):
     '''
-    retrieve the info for the particular weapon id or classname.
-    dict keys may include:
+    Retrieve the info for the particular weapon id or classname.
+    Returned dict keys may include:
         id, classname, printname, weight, damage
         uses_clip, clip_size, clip_def,
         viewmodel, worldmodel, penetration, melee
         ammo_type, ammo_max, ammo_count (only if owner is supplied)
         
     weap_name_or_id -- int or str
-    owner -- geplayer.cbasecombatcharacter
+    owner -- GEPlayer.CBaseCombatCharacter
     '''
     return {}
 
-class cgeweapon( geentity.cbaseentity ):
-    def getweight( self ):
+class CGEWeapon( GEEntity.CBaseEntity ):
+    def GetWeight( self ):
         '''
-        this is a measure of the "desirabiity" of the weapon
+        This is a measure of the "desirabiity" of the weapon
         and ranges from 0 to 6
         '''
         return int
 
-    def getprintname( self ):
+    def GetPrintName( self ):
         return str
 
-    def ismeleeweapon( self ):
+    def IsMeleeWeapon( self ):
         return bool
 
-    def isexplosiveweapon( self ):
+    def IsExplosiveWeapon( self ):
         return bool
 
-    def isautomaticweapon( self ):
+    def IsAutomaticWeapon( self ):
         return bool
 
-    def isthrownweapon( self ):
+    def IsThrownWeapon( self ):
         return bool
 
-    def canholster( self ):
+    def CanHolster( self ):
         '''
-        are we allowed to switch away from this weapon?
+        Are we allowed to switch away from this weapon?
         '''
         return bool
 
-    def hasammo( self ):
+    def HasAmmo( self ):
         return bool
 
-    def usesammo( self ):
+    def UsesAmmo( self ):
         return bool
 
-    def getammotype( self ):
+    def GetAmmoType( self ):
         return str
 
-    def getammocount( self ):
+    def GetAmmoCount( self ):
         '''
-        only works if a player is holding me, gets their ammo held
+        Only works if a player is holding this weapon
+        Returns the player's ammo count associated with this weapon
         '''
         return int
 
-    def setammocount( self, amount ):
+    def SetAmmoCount( self, amount ):
         '''
-        only works if a player is holding me, sets their absolute ammo count
+        Only works if a player is holding this weapon
+        Sets the player's absolute ammo count associated with this weapon
         
         amount -- int
         '''
         return
 
-    def getmaxammocount( self ):
+    def GetMaxAmmoCount( self ):
         '''
-        returns the maximum amount of ammo that can be held
-        '''
-        return int
-
-    def getclip( self ):
-        '''
-        returns the amount of ammo left before reload
+        Returns the maximum amount of ammo that can be held
         '''
         return int
 
-    def getmaxclip( self ):
+    def GetClip( self ):
         '''
-        returns the amount of ammo in one full reload
-        '''
-        return int
-
-    def getdefaultclip( self ):
-        '''
-        returns the amount of ammo given at pickup
+        Returns the amount of ammo left before reload
         '''
         return int
 
-    def getdamage( self ):
-        return int
-
-    def getweaponid( self ):
-        return int
-
-    def getweaponslot( self ):
-        return int
-
-    def setskin( self, skin ):
+    def GetMaxClip( self ):
         '''
-        sets the skin of the world and view model of the weapon
+        Returns the amount of ammo in one full reload
+        '''
+        return int
+
+    def GetDefaultClip( self ):
+        '''
+        Returns the amount of ammo given at pickup
+        '''
+        return int
+
+    def GetDamage( self ):
+        return int
+
+    def GetWeaponId( self ):
+        return int
+
+    def GetWeaponSlot( self ):
+        return int
+
+    def SetSkin( self, skin ):
+        '''
+        Sets the skin of the world and view model of the weapon
         
         skin -- int
         '''
