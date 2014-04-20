@@ -111,9 +111,10 @@ class GEScenario( CBaseScenario ):
         victim -- (CGEMPPlayer)
         killer -- (None or CGEMPPlayer) Will only be none when the victim is killed by a map
         hurt trigger.
-        weapon -- (None,CBaseEntity or CGEMPPlayer) Will only be none when the victim is killed
+        weapon -- (None,GEWeapon or CGEMPPlayer) Will only be none when the victim is killed
         by a map hurt trigger. Will be a CGEMPPlayer object when the victim is killed by
-        CGEMPPlayer.CommitSuicide(). Type check: if type( weapon ) is GEWeapon.CGEWeapon:
+        CGEMPPlayer.CommitSuicide(). When it's a weapon this parameter's object will be a
+        CBaseEntity object, to get a GEWeapon object use: GEWeapon.ToGEWeapon( weapon )
         """
         if not victim:
             return
