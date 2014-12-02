@@ -28,11 +28,8 @@ nosetests.xml
 # Translations
 *.mo
 
-# Mr Developer
-.mr.developer.cfg
-
+.directory
+__pycache__
 python.log
 gphashes.txt
 *.suo
-GamePlay/LaunchCode.py
-GamePlay/Uplink.py
