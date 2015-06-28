@@ -17,10 +17,10 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 from . import GEScenario, GEScenarioHelp
-from Utils import OppositeTeam, _
-from Utils.GEOvertime import GEOvertime
-from Utils.GETimer import EndRoundCallback, TimerTracker, Timer
-from Utils.GEWarmUp import GEWarmUp
+from .Utils import OppositeTeam, _
+from .Utils.GEOvertime import GEOvertime
+from .Utils.GETimer import EndRoundCallback, TimerTracker, Timer
+from .Utils.GEWarmUp import GEWarmUp
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 
 USING_API = Glb.API_VERSION_1_1_1

@@ -17,9 +17,9 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 from . import GEScenario
-from Utils.GEWarmUp import GEWarmUp
-from Utils.GEPlayerTracker import GEPlayerTracker
-from Utils import GetPlayers, clamp, _
+from .Utils.GEWarmUp import GEWarmUp
+from .Utils.GEPlayerTracker import GEPlayerTracker
+from .Utils import GetPlayers, clamp, _
 from random import shuffle
 import GEUtil, GEMPGameRules as GERules, GEGlobal, GEPlayer, GEWeapon
 

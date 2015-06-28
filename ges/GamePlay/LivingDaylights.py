@@ -17,7 +17,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 from . import GEScenario, GEScenarioHelp
-from Utils import plural, clamp, choice, _
+from .Utils import plural, clamp, choice, _
 import GEEntity, GEPlayer, GEUtil, GEMPGameRules, GEGlobal
 
 USING_API = GEGlobal.API_VERSION_1_1_1

@@ -17,8 +17,8 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 from . import GEScenario
-from Utils import clamp, plural, _
-from Utils.GEWarmUp import GEWarmUp
+from .Utils import clamp, plural, _
+from .Utils.GEWarmUp import GEWarmUp
 import GEUtil, GEMPGameRules as GERules, GEGlobal
 
 # Tournament Deathmatch

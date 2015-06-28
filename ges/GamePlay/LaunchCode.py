@@ -16,9 +16,9 @@
 # along with GoldenEye: Source's Python Library.
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
-from GamePlay import GEScenario
-from GamePlay.Utils.GEWarmUp import GEWarmUp
-from GamePlay.Utils.GETimer import TimerTracker, Timer
+from . import GEScenario
+from .Utils.GEWarmUp import GEWarmUp
+from .Utils.GETimer import TimerTracker, Timer
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 import random
 
@@ -196,14 +196,14 @@ class LaunchCode( GEScenario ):
 
 	def OnCaptureAreaRemoved( self, area ):
 		aUID = area.GetUID()
-		if self.game_terminals.has_key( aUID ):
+		if aUID in self.game_terminals:
 			del self.game_terminals[aUID]
 
 		GERules.GetRadar().DropRadarContact( area )
 
 	def OnCaptureAreaEntered( self, area, player, token ):
 		aUID = area.GetUID()
-		if not self.game_terminals.has_key( aUID ) or self.game_terminals[aUID]["hacked"]:
+		if aUID not in self.game_terminals or self.game_terminals[aUID]["hacked"]:
 			return
 
 		if player.GetUID() == self.hacker_playerUID:

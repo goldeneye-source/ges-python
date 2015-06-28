@@ -17,9 +17,9 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
 from . import GEScenario
-from Utils import choice, clamp, plural, GetPlayers
-from Utils.GEPlayerTracker import GEPlayerTracker
-from Utils.GETimer import TimerTracker, EndRoundCallback
+from .Utils import choice, clamp, plural, GetPlayers
+from .Utils.GEPlayerTracker import GEPlayerTracker
+from .Utils.GETimer import TimerTracker, EndRoundCallback
 from GEUtil import Color
 import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
 import random
