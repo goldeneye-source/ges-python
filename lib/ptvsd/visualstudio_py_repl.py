@@ -14,6 +14,11 @@
 
 from __future__ import with_statement
 
+# This module MUST NOT import threading in global scope. This is because in a direct (non-ptvsd)
+# attach scenario, it is loaded on the injected debugger attach thread, and if threading module
+# hasn't been loaded already, it will assume that the thread on which it is being loaded is the
+# main thread. This will cause issues when the thread goes away after attach completes.
+
 try:
     import thread
 except ImportError:
@@ -24,7 +29,6 @@ try:
 except:
     SSLError = None
 
-import threading
 import sys
 import socket
 import select
@@ -39,13 +43,14 @@ import types
 from collections import deque
 
 try:
-    import visualstudio_py_util as _vspu
-except ImportError:
+    # In the local attach scenario, visualstudio_py_util is injected into globals()
+    # by PyDebugAttach before loading this module, and cannot be imported.
+    _vspu = visualstudio_py_util
+except:
     try:
-        import ptvsd.visualstudio_py_util as _vspu
+        import visualstudio_py_util as _vspu
     except ImportError:
-        # in the local attach scenario, visualstudio_py_util should already be defined
-        _vspu = visualstudio_py_util
+        import ptvsd.visualstudio_py_util as _vspu
 to_bytes = _vspu.to_bytes
 read_bytes = _vspu.read_bytes
 read_int = _vspu.read_int
@@ -152,6 +157,7 @@ actual inspection and introspection."""
     _DBGA = to_bytes('DBGA')
     _DETC = to_bytes('DETC')
     _DPNG = to_bytes('DPNG')
+    _DXAM = to_bytes('DXAM')
 
     _MERR = to_bytes('MERR')
     _SERR = to_bytes('SERR')
@@ -161,6 +167,7 @@ actual inspection and introspection."""
     _MODC = to_bytes('MODC')
     
     def __init__(self):
+        import threading
         self.conn = None
         self.send_lock = SafeSendLock()
         self.input_event = threading.Lock()
@@ -282,11 +289,10 @@ actual inspection and introspection."""
                     write_string(self.conn, (doc or '')[:4096])
                     arg_count = len(args) + (vargs is not None) + (varkw is not None)
                     write_int(self.conn, arg_count)
-                    for arg in args:
-                        if arg is None:
-                            write_string(self.conn, '')
-                        else:
-                            write_string(self.conn, arg)
+                    
+                    def_values = [''] * (len(args) - len(defaults)) + ['=' + d for d in defaults]
+                    for arg, def_value in zip(args, def_values):
+                        write_string(self.conn, (arg or '') + def_value)
                     if vargs is not None:
                         write_string(self.conn, '*' + vargs)
                     if varkw is not None:
@@ -331,10 +337,19 @@ actual inspection and introspection."""
         args = read_string(self.conn)
         self.execute_file(filename, args)
 
+    def _cmd_excx(self):
+        """handles executing a single file, module or process"""
+        filetype = read_string(self.conn)
+        filename = read_string(self.conn)
+        args = read_string(self.conn)
+        self.execute_file_ex(filetype, filename, args)
+
     def _cmd_debug_attach(self):
+        import visualstudio_py_debugger
         port = read_int(self.conn)
         id = read_string(self.conn)
-        self.attach_process(port, id)
+        debug_options = visualstudio_py_debugger.parse_debug_options(read_string(self.conn))
+        self.attach_process(port, id, debug_options)
 
     _COMMANDS = {
         to_bytes('run '): _cmd_run,
@@ -347,6 +362,7 @@ actual inspection and introspection."""
         to_bytes('sett'): _cmd_sett,
         to_bytes('inpl'): _cmd_inpl,
         to_bytes('excf'): _cmd_excf,
+        to_bytes('excx'): _cmd_excx,
         to_bytes('dbga'): _cmd_debug_attach,
     }
 
@@ -364,7 +380,7 @@ actual inspection and introspection."""
         from os import path
         sys.path.append(path.dirname(__file__))
         import visualstudio_py_debugger
-        visualstudio_py_debugger.DONT_DEBUG.append(__file__)
+        visualstudio_py_debugger.DONT_DEBUG.append(path.normcase(__file__))
         new_thread = visualstudio_py_debugger.new_thread()
         sys.settrace(new_thread.trace_func)
         visualstudio_py_debugger.intercept_threads(True)
@@ -379,6 +395,12 @@ actual inspection and introspection."""
             write_bytes(self.conn, ReplBackend._DPNG)
             write_int(self.conn, len(image_bytes))
             write_bytes(self.conn, image_bytes)
+
+    def write_xaml(self, xaml_bytes):
+        with self.send_lock:
+            write_bytes(self.conn, ReplBackend._DXAM)
+            write_int(self.conn, len(xaml_bytes))
+            write_bytes(self.conn, xaml_bytes)
 
     def send_prompt(self, ps1, ps2, update_all = True):
         """sends the current prompt to the interactive window"""
@@ -438,6 +460,10 @@ actual inspection and introspection."""
         
     def execute_file(self, filename, args):
         """executes the given filename as the main module"""
+        return self.execute_file_ex('script', filename, args)
+
+    def execute_file_ex(self, filetype, filename, args):
+        """executes the given filename as a 'script', 'module' or 'process'."""
         raise NotImplementedError
 
     def interrupt_main(self):
@@ -472,7 +498,7 @@ actual inspection and introspection."""
         """flushes the stdout/stderr buffers"""
         raise NotImplementedError
 
-    def attach_process(self, port, debugger_id):
+    def attach_process(self, port, debugger_id, debug_options):
         """starts processing execution requests"""
         raise NotImplementedError
     
@@ -514,6 +540,7 @@ class BasicReplBackend(ReplBackend):
 
     """Basic back end which executes all Python code in-proc"""
     def __init__(self, mod_name = '__main__', launch_file = None):
+        import threading
         ReplBackend.__init__(self)
         if mod_name is not None:
             if sys.platform == 'cli':
@@ -727,13 +754,43 @@ due to the exec, so we do it here"""
     def check_for_exit_execution_loop(self):
         return False
 
-    def execute_file_work_item(self):
+    def execute_script_work_item(self):
         self.run_file_as_main(self.current_code, self.current_args)
+
+    def execute_module_work_item(self):
+        new_argv = [''] + _command_line_to_args_list(self.current_args)
+        old_argv = sys.argv
+        import runpy
+        try:
+            sys.argv = new_argv
+            runpy.run_module(self.current_code, alter_sys=True)
+        except Exception:
+            traceback.print_exc()
+        finally:
+            sys.argv = old_argv
+
+    def execute_process_work_item(self):
+        try:
+            from subprocess import Popen, PIPE, STDOUT
+            import codecs
+            out_codec = codecs.lookup(sys.stdout.encoding)
+
+            proc = Popen(
+                '"%s" %s' % (self.current_code, self.current_args),
+                stdout=PIPE,
+                stderr=STDOUT,
+                bufsize=0,
+            )
+
+            for line in proc.stdout:
+                print(out_codec.decode(line, 'replace')[0].rstrip('\r\n'))
+        except Exception:
+            traceback.print_exc()
 
     @staticmethod
     def _get_cur_module_set():
-        """gets the set of modules avoiding exceptions if someone puts something"""
-        """weird in there"""
+        """gets the set of modules avoiding exceptions if someone puts something
+        weird in there"""
 
         try:
             return set(sys.modules)
@@ -752,10 +809,10 @@ due to the exec, so we do it here"""
         self.execute_item = self.execute_code_work_item
         self.execute_item_lock.release()
 
-    def execute_file(self, filename, args):
+    def execute_file_ex(self, filetype, filename, args):
         self.current_code = filename
         self.current_args = args
-        self.execute_item = self.execute_file_work_item
+        self.execute_item = getattr(self, 'execute_%s_work_item' % filetype, None)
         self.execute_item_lock.release()
 
     def interrupt_main(self):
@@ -767,7 +824,7 @@ due to the exec, so we do it here"""
             else:
                 thread.interrupt_main()
 
-    def exit_process(self):        
+    def exit_process(self):
         self.execute_item = exit_work_item
         try:
             self.execute_item_lock.release()
@@ -882,8 +939,8 @@ due to the exec, so we do it here"""
             raise
 
         remove_self = type_obj is not None or (type(val) is types.MethodType and 
-                        ((sys.version >= '3.0' and val.__self__ is not None) or
-                        (sys.version < '3.0' and val.im_self is not None)))
+                        ((sys.version_info >= (3,) and val.__self__ is not None) or
+                        (sys.version_info < (3,) and val.im_self is not None)))
 
         if remove_self:
             # remove self for instance methods and types
@@ -891,6 +948,8 @@ due to the exec, so we do it here"""
             
         if defaults is not None:
             defaults = [repr(default) for default in defaults]
+        else:
+            defaults = []
         return [(doc, args, vargs, varkw, defaults)]
 
     def set_current_module(self, module):
@@ -939,11 +998,11 @@ due to the exec, so we do it here"""
         visualstudio_py_debugger.DETACH_CALLBACKS.remove(self.do_detach)
         self.on_debugger_detach()
 
-    def attach_process(self, port, debugger_id):
+    def attach_process(self, port, debugger_id, debug_options):
         def execute_attach_process_work_item():
             import visualstudio_py_debugger
             visualstudio_py_debugger.DETACH_CALLBACKS.append(self.do_detach)
-            visualstudio_py_debugger.attach_process(port, debugger_id, True)        
+            visualstudio_py_debugger.attach_process(port, debugger_id, debug_options, report=True, block=True)
         
         self.execute_item = execute_attach_process_work_item
         self.execute_item_lock.release()
@@ -990,6 +1049,8 @@ class DebugReplBackend(BasicReplBackend):
         sys.stderr = _ReplOutput(self, is_stdout = False, old_out = sys.stderr)
         if sys.platform == 'cli':
             import System
+            self.old_cli_stdout = System.Console.Out
+            self.old_cli_stderr = System.Console.Error
             System.Console.SetOut(DotNetOutput(self, True, System.Console.Out))
             System.Console.SetError(DotNetOutput(self, False, System.Console.Error))
 
@@ -1005,8 +1066,10 @@ class DebugReplBackend(BasicReplBackend):
         sys.stdout = sys.stdout.old_out
         sys.stderr = sys.stderr.old_out
         if sys.platform == 'cli':
-            System.Console.SetOut(System.Console.Out.old_out)
-            System.Console.SetError(System.Console.Error.old_out)
+            System.Console.SetOut(self.old_cli_stdout)
+            System.Console.SetError(self.old_cli_stderr)
+            del self.old_cli_stdout
+            del self.old_cli_stderr
 
         # this tells both _repl_loop and execution_loop, each 
         # running on its own worker thread, to exit
@@ -1108,6 +1171,7 @@ class _ReplOutput(object):
     errors = None
 
     def __init__(self, backend, is_stdout, old_out = None):
+        self.name = "<stdout>" if is_stdout else "<stderr>"
         self.backend = backend
         self.old_out = old_out
         self.is_stdout = is_stdout
@@ -1118,7 +1182,7 @@ class _ReplOutput(object):
             self.old_out.flush()
     
     def fileno(self):
-        if self.pipe is None:        
+        if self.pipe is None:
             self.pipe = os.pipe()
             thread.start_new_thread(self.pipe_thread, (), {})
 
@@ -1159,13 +1223,6 @@ class _ReplOutput(object):
 
     def next(self):
         pass
-    
-    @property
-    def name(self):
-        if self.is_stdout:
-            return "<stdout>"
-        else:
-            return "<stderr>"
 
 
 class _ReplInput(object):
@@ -1289,7 +1346,7 @@ def _run_repl():
             backend_error = traceback.format_exc()
 
     # fix sys.path so that cwd is where the project lives.
-    sys.path[0] = os.getcwd()
+    sys.path[0] = '.'
     # remove all of our parsed args in case we have a launch file that cares...
     sys.argv = args or ['']
 
