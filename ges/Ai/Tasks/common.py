@@ -18,6 +18,8 @@
 #############################################################################
 from . import BaseTask
 import GEEntity, GEWeapon, GEUtil, GEAiTasks, GEGlobal as Glb, GEMPGameRules as GERules
+from GEGamePlay import GetScenario
+from GEGamePlay import CBaseScenario
 
 class FindEnemy( BaseTask ):
     def Start( self, npc, data ):
@@ -45,104 +47,54 @@ class FindAmmo( BaseTask ):
         if data <= 0:
             data = 512
 
-        currWeap = npc.GetActiveWeapon().GetClassname()
-        memory = npc.GetSystem( AiSystems.MEMORY )
+        # combine that list of ammo with the item tracker's list
+        ammocrates = GetScenario().itemTracker.ammocrates
 
-        # If we have a memory, try to find ammo for our current weapon
-        if memory is not None:
-            weap_memories = memory.FindMemoriesByType( Memory.TYPE_WEAPON )
-            for w in weap_memories:
-                assert isinstance( w, Memory.Memory )
-                if w.classname == currWeap:
-                    ammo_memories = memory.FindMemoriesNear( w.location, Memory.TYPE_AMMO, data )
-                    if len( ammo_memories ) > 0:
-                        npc.SetTargetPos( ammo_memories[0].location )
-                        self.Complete( npc )
-                        return
+        if len( ammocrates ) > 0:
+            # we must start with a bestChoice, so choose the first one until we know better
+            bestChoice = None
 
-        # If we get here we either don't have a memory or didn't remember an ammo box
-        my_pos = npc.GetAbsOrigin()
-        ammo = GEEntity.GetEntitiesInBox( "ge_ammocrate", my_pos, GEUtil.Vector( -data, -data, 0 ), GEUtil.Vector( data, data, 120 ) )
+            # find closest ammocrate
+            for ammocrate in ammocrates:
+                if npc.GetSystem( AiSystems.WEAPONS ).WantsAmmoCrate( ammocrate, bestChoice ):
+                    bestChoice = ammocrate
 
-        # Sort by closest ammo
-        ammo.sort( key=lambda x: my_pos.DistTo( x.GetAbsOrigin() ) )
-
-        if len( ammo ) > 0:
-            npc.SetTarget( ammo[0] )
-            self.Complete( npc )
-            return
+            if bestChoice != None:
+                # target closest ammo
+                npc.SetTarget( bestChoice )
+                self.Complete( npc )
+                return
 
         # We failed to find anything, fail the task
         npc.TaskFail( GEAiTasks.TaskFail.NO_TARGET )
 
 class FindWeapon( BaseTask ):
-    def WantsWeapon( self, npc, weapon=None, memory=None ):
-        from Ai.Utils import Memory
-
-        assert isinstance( weapon, GEWeapon.CGEWeapon )
-        assert isinstance( memory, Memory.Memory )
-
-        weapon = GEWeapon.ToGEWeapon( weapon )
-        my_pos = npc.GetAbsOrigin()
-        curr_weap = npc.GetActiveWeapon()
-
-        if not curr_weap:
-            return True
-        elif weapon:
-            return not weapon.GetPlayerOwner() and \
-                weapon.GetWeight() >= curr_weap.GetWeight() and \
-                weapon.GetAbsOrigin().DistTo( my_pos ) < 2048. and \
-                npc.GetAmmoCount( weapon.GetAmmoType() ) < weapon.GetMaxAmmoCount()
-        elif memory and type( memory.data ) is dict:
-            try:
-                dist = memory.location.DistTo( my_pos )
-                # If we are close, see if there is actually a weapon there!
-                if dist < 500.:
-                    weaps = GEEntity.GetEntitiesInBox( "weapon_*", memory.location, GEUtil.Vector( -64, -64, -10 ), GEUtil.Vector( 64, 64, 32 ) )
-                    if len( weaps ) == 0:
-                        return False
-                # Otherwise do a heuristic check
-                return memory.data["weight"] >= curr_weap.GetWeight() and \
-                    dist < 2048. and \
-                    npc.GetAmmoCount( memory.data["ammo_type"] ) < npc.GetMaxAmmoCount( memory.data["ammo_type"] )
-            except:
-                return False
-        else:
-            return False
-
+   
     def Start( self, npc, data ):
         from Ai import PYBaseNPC, AiSystems
-        from Ai.Utils import Memory
 
         assert isinstance( npc, PYBaseNPC )
 
         if data <= 0:
             data = 512
 
-        memory = npc.GetSystem( AiSystems.MEMORY )
-        my_pos = npc.GetAbsOrigin()
+        # grab weapons nearby (this searches for dropped weapons which don't show up in itemTracker by default)
+        weaponsNearby = GEEntity.GetEntitiesInBox( "weapon_*", npc.GetAbsOrigin(), GEUtil.Vector( -data, -data, -10 ), GEUtil.Vector( data, data, 120 ) )
 
-        # If we have a memory, try to find the best weapon we remember
-        if memory is not None:
-            weap_memories = memory.FindMemoriesByType( Memory.TYPE_WEAPON )
-            for m in weap_memories:
-                assert isinstance( m, Memory.Memory )
-                if self.WantsWeapon( npc, memory=m ):
-                # 	print "Going for weapon %s from memory!" % m.classname
-                    npc.SetTargetPos( m.location )
-                    self.Complete( npc )
-                    return
+        # combine that list of weapons with the item tracker's list
+        weapons = list( set( GetScenario().itemTracker.weapons + weaponsNearby ) )
+        
+        if len( weapons ) > 0:
+            bestChoice = None
 
-        # If we get here we either don't have a memory or didn't remember any valid weapons
-        weaps = GEEntity.GetEntitiesInBox( "weapon_*", my_pos, GEUtil.Vector( -data, -data, -10 ), GEUtil.Vector( data, data, 120 ) )
-
-        # Sort by closest ammo
-        weaps.sort( key=lambda x: GEWeapon.ToGEWeapon( x ).GetWeight() )
-
-        for weap in weaps:
-            if self.WantsWeapon( npc, weapon=weap ):
-            # 	print "Going for weapon %s that I found!" % weap.GetClassname()
-                npc.SetTarget( weap )
+            # find closest weapon
+            for weapon in weapons:
+                if npc.GetSystem( AiSystems.WEAPONS ).WantsWeapon( weapon, bestChoice ):
+                    bestChoice = weapon
+        
+            if bestChoice != None:
+                # target closest weapon
+                npc.SetTarget( bestChoice )
                 self.Complete( npc )
                 return
 
@@ -152,32 +104,22 @@ class FindWeapon( BaseTask ):
 class FindArmor( BaseTask ):
     def Start( self, npc, data ):
         from Ai import PYBaseNPC, AiSystems
-        from Ai.Utils import Memory
 
         assert isinstance( npc, PYBaseNPC )
 
-        if data <= 0:
-            data = 720
+        armorvests = GetScenario().itemTracker.armorvests
 
-        memory = npc.GetSystem( AiSystems.MEMORY )
+        if len( armorvests ) > 0:
+            # we must start with a bestChoice, so choose the first one until we know better
+            bestChoice = armorvests[0]
 
-        # If we have a memory, try to find the closest armor we remember
-        if memory is not None:
-            armor_memories = memory.FindMemoriesByType( Memory.TYPE_ARMOR )
-            if len( armor_memories ) > 0:
-                npc.SetTargetPos( armor_memories[0].location )
-                self.Complete( npc )
-                return
-
-        # If we get here we either don't have a memory or didn't remember an ammo box
-        my_pos = npc.GetAbsOrigin()
-        armor = GEEntity.GetEntitiesInBox( "item_armorvest*", my_pos, GEUtil.Vector( -data, -data, -10 ), GEUtil.Vector( data, data, 120 ) )
-
-        # Sort by closest armor
-        armor.sort( key=lambda x: my_pos.DistTo( x.GetAbsOrigin() ) )
-
-        if len( armor ) > 0:
-            npc.SetTarget( armor[0] )
+            # find closest armor
+            for armor in armorvests:
+                if npc.GetAbsOrigin().DistTo( armor.GetAbsOrigin() ) < npc.GetAbsOrigin().DistTo( bestChoice.GetAbsOrigin() ):
+                    bestChoice = armor
+        
+            # target closest armor
+            npc.SetTarget( bestChoice )
             self.Complete( npc )
             return
 

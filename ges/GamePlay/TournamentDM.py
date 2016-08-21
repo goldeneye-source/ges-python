@@ -19,13 +19,13 @@
 from . import GEScenario
 from .Utils import clamp, plural, _
 from .Utils.GEWarmUp import GEWarmUp
-import GEUtil, GEMPGameRules as GERules, GEGlobal
+import GEUtil, GEMPGameRules as GERules, GEGlobal as Glb
 
 # Tournament Deathmatch
 # Coded by Troy and Killer Monkey
 # /////////////////////////// Scenario Data ///////////////////////////
 
-USING_API = GEGlobal.API_VERSION_1_1_1
+USING_API = Glb.API_VERSION_1_2_0
 
 class TournamentDM( GEScenario ):
     def __init__( self ):
@@ -42,10 +42,6 @@ class TournamentDM( GEScenario ):
         self.FragLimit = 50
         self.FragMessages = True
 
-    def Cleanup( self ):
-        GEScenario.Cleanup( self )
-        self.warmupTimer = None
-
     def GetPrintName( self ):
         return "#GES_GP_TOURNAMENTDM_NAME"
 
@@ -56,7 +52,7 @@ class TournamentDM( GEScenario ):
         return "Tournament DM"
 
     def GetTeamPlay( self ):
-        return GEGlobal.TEAMPLAY_ALWAYS
+        return Glb.TEAMPLAY_ALWAYS
 
     def OnLoadGamePlay( self ):
         GEUtil.PrecacheSound( "GEGamePlay.Token_Drop_Friend" )
@@ -68,11 +64,15 @@ class TournamentDM( GEScenario ):
 
         # Make sure we don't start out in wait time if we changed gameplay mid-match
         if GERules.IsTeamplay():
-            if GERules.GetNumActiveTeamPlayers( GEGlobal.TEAM_MI6 ) >= 2 and GERules.GetNumActiveTeamPlayers( GEGlobal.TEAM_JANUS ) >= 2:
+            if GERules.GetNumActiveTeamPlayers( Glb.TEAM_MI6 ) >= 2 and GERules.GetNumActiveTeamPlayers( Glb.TEAM_JANUS ) >= 2:
                 self.WaitingForPlayers = False
         else:
             if GERules.GetNumActivePlayers() >= 4:
                 self.WaitingForPlayers = False
+
+    def OnUnloadGamePlay( self ):
+        super( TournamentDM, self ).OnUnloadGamePlay()
+        self.warmupTimer = None
 
     def OnCVarChanged( self, name, oldvalue, newvalue ):
         if name == "tdm_fraglimit":
@@ -121,20 +121,20 @@ class TournamentDM( GEScenario ):
             killer.AddRoundScore( 1 )
 
             if self.FragLimit > 0 and self.FragMessages:
-                if killer.GetTeamNumber() == GEGlobal.TEAM_MI6:
-                    team = GERules.GetTeam( GEGlobal.TEAM_MI6 )
+                if killer.GetTeamNumber() == Glb.TEAM_MI6:
+                    team = GERules.GetTeam( Glb.TEAM_MI6 )
                     teamName = '^i' + team.GetName()
                     teamScore = team.GetRoundScore() + team.GetMatchScore()
                     self.PrintFragMessages( killer, teamName, teamScore )
-                elif killer.GetTeamNumber() == GEGlobal.TEAM_JANUS:
-                    team = GERules.GetTeam( GEGlobal.TEAM_JANUS )
+                elif killer.GetTeamNumber() == Glb.TEAM_JANUS:
+                    team = GERules.GetTeam( Glb.TEAM_JANUS )
                     teamName = '^r' + team.GetName()
                     teamScore = team.GetRoundScore() + team.GetMatchScore()
                     self.PrintFragMessages( killer, teamName, teamScore )
 
     def OnThink( self ):
         # Check for insufficient player count
-        if GERules.GetNumActiveTeamPlayers( GEGlobal.TEAM_MI6 ) < 2 or GERules.GetNumActiveTeamPlayers( GEGlobal.TEAM_JANUS ) < 2:
+        if GERules.GetNumActiveTeamPlayers( Glb.TEAM_MI6 ) < 2 or GERules.GetNumActiveTeamPlayers( Glb.TEAM_JANUS ) < 2:
             if not self.WaitingForPlayers:
                 self.notice_WaitingForPlayers = 0
                 GERules.EndRound()
@@ -155,8 +155,8 @@ class TournamentDM( GEScenario ):
                 GERules.EndRound( False )
 
         if self.FragLimit > 0:
-            teamJ = GERules.GetTeam( GEGlobal.TEAM_JANUS )
-            teamM = GERules.GetTeam( GEGlobal.TEAM_MI6 )
+            teamJ = GERules.GetTeam( Glb.TEAM_JANUS )
+            teamM = GERules.GetTeam( Glb.TEAM_MI6 )
 
             jScore = teamJ.GetRoundScore() + teamJ.GetMatchScore()
             mScore = teamM.GetRoundScore() + teamM.GetMatchScore()
@@ -169,7 +169,7 @@ class TournamentDM( GEScenario ):
 
     def PrintFragMessages( self, killer, teamName, teamScore ):
         if not self.FirstBlood and self.FragLimit > 1:
-            GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_TDM_FIRSTBLOOD", teamName )
+            GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, "#GES_GP_TDM_FIRSTBLOOD", teamName )
             self.PlayTeamSounds( killer.GetTeamNumber() )
             self.FirstBlood = True
 
@@ -177,15 +177,15 @@ class TournamentDM( GEScenario ):
             scoreToWin = self.FragLimit - teamScore
 
             if scoreToWin == 0:
-                GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_TDM_WON", teamName )
+                GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, "#GES_GP_TDM_WON", teamName )
             elif scoreToWin <= 3:
-                GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, plural( scoreToWin, "#GES_GP_TDM_FRAGS_LEFT" ), teamName, str( scoreToWin ) )
+                GEUtil.ClientPrint( None, Glb.HUD_PRINTTALK, plural( scoreToWin, "#GES_GP_TDM_FRAGS_LEFT" ), teamName, str( scoreToWin ) )
                 self.PlayTeamSounds( killer.GetTeamNumber() )
 
     def PlayTeamSounds( self, team ):
-        if team == GEGlobal.TEAM_MI6:
-            GEUtil.PlaySoundTo( GEGlobal.TEAM_MI6, "GEGamePlay.Token_Grab" )
-            GEUtil.PlaySoundTo( GEGlobal.TEAM_JANUS, "GEGamePlay.Token_Drop_Friend" )
-        elif team == GEGlobal.TEAM_JANUS:
-            GEUtil.PlaySoundTo( GEGlobal.TEAM_MI6, "GEGamePlay.Token_Drop_Friend" )
-            GEUtil.PlaySoundTo( GEGlobal.TEAM_JANUS, "GEGamePlay.Token_Grab" )
+        if team == Glb.TEAM_MI6:
+            GEUtil.PlaySoundTo( Glb.TEAM_MI6, "GEGamePlay.Token_Grab" )
+            GEUtil.PlaySoundTo( Glb.TEAM_JANUS, "GEGamePlay.Token_Drop_Friend" )
+        elif team == Glb.TEAM_JANUS:
+            GEUtil.PlaySoundTo( Glb.TEAM_MI6, "GEGamePlay.Token_Drop_Friend" )
+            GEUtil.PlaySoundTo( Glb.TEAM_JANUS, "GEGamePlay.Token_Grab" )

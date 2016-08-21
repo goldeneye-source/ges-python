@@ -1,4 +1,4 @@
-################ Copyright 2005-2013 Team GoldenEye: Source #################
+################ Copyright 2005-2016 Team GoldenEye: Source #################
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
@@ -18,10 +18,11 @@
 #############################################################################
 from .DeathMatch import DeathMatch
 from .Utils import GetPlayers
-import GEPlayer, GEUtil, GEMPGameRules, GEGlobal
+import GEPlayer, GEUtil, GEMPGameRules as GERules, GEGlobal as Glb
 
-USING_API = GEGlobal.API_VERSION_1_1_1
+USING_API = Glb.API_VERSION_1_2_0
 
+# LTK is just deathmatch with no armor, a high damage multiplier, and popout help.
 class LTK( DeathMatch ):
     def GetPrintName( self ):
         return "#GES_GP_LTK_NAME"
@@ -30,7 +31,7 @@ class LTK( DeathMatch ):
         help_obj.SetDescription( "#GES_GP_LTK_HELP" )
 
     def GetGameDescription( self ):
-        if GEMPGameRules.IsTeamplay():
+        if GERules.IsTeamplay():
             return "Team LTK"
         else:
             return "LTK"
@@ -38,7 +39,8 @@ class LTK( DeathMatch ):
     def OnLoadGamePlay( self ):
         super( LTK, self ).OnLoadGamePlay()
         self.ltk_SetDamageMultiplier( 1000 )
-
+        GERules.SetSpawnInvulnTime( 0, True )
+        
     def OnPlayerConnect( self, player ):
         player.SetDamageMultiplier( 1000 )
 
@@ -48,7 +50,7 @@ class LTK( DeathMatch ):
 
     def OnRoundBegin( self ):
         super( LTK, self ).OnRoundBegin()
-        GEMPGameRules.DisableArmorSpawns()
+        GERules.DisableArmorSpawns()
 
     def ltk_SetDamageMultiplier( self, amount ):
         for player in GetPlayers():

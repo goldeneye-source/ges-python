@@ -19,8 +19,10 @@
 from Ai import PYBaseNPC, AiSystems
 from . import Memory
 from ..Schedules import Cond
-import GEEntity, GEPlayer, GEWeapon, GEUtil, GEGlobal as Glb
+import GEEntity, GEAmmoCrate, GEPlayer, GEWeapon, GEUtil, GEGlobal as Glb
 from GEGlobal import EventHooks
+from GEGamePlay import GetScenario
+from GEGamePlay import CBaseScenario
 
 class Weight:
     WORST, BAD, LOW, MEDIUM, HIGH, BEST = range( 6 )
@@ -33,13 +35,63 @@ class WeaponManager:
         if not isinstance( parent, PYBaseNPC ):
             raise TypeError( "Memory initialized on a non-NPC, aborting" )
 
-        self._weapons = []
         self._npc = parent
+        self._weapons = self._npc.GetHeldWeaponIds()
         self.param_callback = None
         self.time_to_next_weaponcheck = 0
         self.debug = False
 
         parent.RegisterEventHook( EventHooks.AI_GATHERCONDITIONS, self.GatherConditions )
+        parent.RegisterEventHook( EventHooks.AI_PICKUPITEM, self.OnPickupItem )
+    
+    def WantsAmmoCrate( self, ammocrate=None, bestAmmoCrateSoFar=None ):
+        assert isinstance( ammocrate, GEAmmoCrate.CGEAmmoCrate )
+        ammocrate = GEAmmoCrate.ToGEAmmoCrate( ammocrate )
+
+        my_pos = self._npc.GetAbsOrigin()
+        curr_weap = self._npc.GetActiveWeapon()
+
+        if curr_weap == None or curr_weap.IsMeleeWeapon() or ammocrate == None:
+            return False
+
+        return ammocrate.GetAmmoType() == curr_weap.GetAmmoType()
+
+    def WantsWeapon( self, weapon=None, bestWeaponSoFar=None):
+        my_pos = self._npc.GetAbsOrigin()
+        curr_weap = self._npc.GetActiveWeapon()
+
+        # if we're further away than the best weapon considered so far, we don't want it
+        if bestWeaponSoFar != None:
+            if self._npc.GetAbsOrigin().DistTo( weapon.GetAbsOrigin() ) > self._npc.GetAbsOrigin().DistTo( bestWeaponSoFar.GetAbsOrigin() ):
+                return False
+
+        # check if this weapon is better than our current weapon
+        if curr_weap != None:
+            if curr_weap.GetWeaponId() == weapon.GetWeaponId():
+                # we don't want our current weapon
+                return False
+            elif curr_weap.GetWeight() >= weapon.GetWeight():
+                # we don't want a weapon unless it is better
+                return False
+
+        # we don't want this weapon if we have it in our inventory
+        self._weapons = self._npc.GetHeldWeaponIds()
+        for ownedWeapon in self._weapons:
+            if ownedWeapon == weapon.GetWeaponId() \
+                and (self._npc.GetAmmoCount( weapon.GetAmmoType() ) > 0 or weapon.GetWeaponId() == Glb.WEAPON_MOONRAKER):
+                return False
+
+        # passed all checks, we want it
+        return True
+        
+    def OnPickupItem( self ):
+        curr_weap = self._npc.GetActiveWeapon()
+        weap_id = self.GetBestWeapon()
+
+        if weap_id:
+            # Did we choose a new weapon?
+            if not curr_weap or ( weap_id and weap_id != curr_weap.GetWeaponId() ):
+                self._npc.WeaponSwitch( weap_id )
 
     def GatherConditions( self ):
         curr_weap = self._npc.GetActiveWeapon()
@@ -63,18 +115,29 @@ class WeaponManager:
 
         # Weapon gathering checks
         self._npc.ClearCondition( Cond.BETTER_WEAPON_AVAILABLE )
-        weap_mems = self._npc.GetSystem( AiSystems.MEMORY ).FindMemoriesByType( Memory.TYPE_WEAPON )
-        for m in weap_mems:
-            assert isinstance( m, Memory.Memory )
-            try:
-                # Should we signal to go for this weapon?
-                if m.GetConfidence() > 0.3 and type( m.data ) is dict and m.data["weight"] >= curr_weap.GetWeight() and not self._npc.HasWeapon( m.data["id"] ):
-                    if self._npc.GetAbsOrigin().DistTo( m.location ) < 1024:
-                        self._npc.SetCondition( Cond.GES_CLOSE_TO_WEAPON )
+        self._npc.ClearCondition( Cond.GES_AMMO_AVAILABLE )
+        self._npc.ClearCondition( Cond.GES_CLOSE_TO_WEAPON )
+
+
+        weapons = GetScenario().itemTracker.weapons
+        
+        if len( weapons ) > 0:
+            # find close weapons
+            for weapon in weapons:
+                if self.WantsWeapon( weapon, None ):
                     self._npc.SetCondition( Cond.BETTER_WEAPON_AVAILABLE )
+
+                    if self._npc.GetAbsOrigin().DistTo( weapon.GetAbsOrigin() ) < 512:
+                        self._npc.SetCondition( Cond.GES_CLOSE_TO_WEAPON )
+                        break
+
+        ammocrates = GetScenario().itemTracker.ammocrates
+        if len( ammocrates ) > 0:
+            # find close ammo
+            for ammocrate in ammocrates:
+                if self.WantsAmmoCrate( ammocrate, None ):
+                    self._npc.SetCondition( Cond.GES_AMMO_AVAILABLE )
                     break
-            except:
-                pass
 
     def GetBestWeapon( self, melee_bonus=0, explosive_bonus=0, thrown_bonus=0 ):
         # Get all the NPC's held weapons
@@ -103,26 +166,13 @@ class WeaponManager:
             if weap not in self._weapons:
                 continue
 
-            # Base weight will decrease as we go down our list of weapons
-            weight = len( base_list ) - len( weap_list )
-
-            info = GEWeapon.WeaponInfo( int( weap ), self._npc.GetNPC() )
-            if info["ammo_count"] > 0:
-                # Bonus points for the number of clips of ammo we have
-                if info["uses_clip"]:
-                    weight += min( 3, float( info["ammo_count"] ) / info["clip_size"] )
-                else:
-                    weight += min( 3, info["ammo_count"] )
-            elif weap != Glb.WEAPON_MOONRAKER and not info["melee"]:
-                # Weapons with no ammo are not even considered
+            # do not pull out an weapon without ammo
+            ammoType = GEWeapon.WeaponInfo( weap )['ammo_type']
+            if self._npc.GetAmmoCount( ammoType ) <= 0 and self._npc.GetMaxAmmoCount( ammoType ) > 0:
                 continue
 
-            if info["melee"]:
-                weight += melee_bonus
-            if weap in WEAP_EXPLOSIVES:
-                weight += explosive_bonus
-            if weap in WEAP_THROWN:
-                weight += thrown_bonus
+            # Base weight will decrease as we go down our list of weapons
+            weight = len( base_list ) - len( weap_list )
 
             weap_list.append( ( weap, weight ) )
 
@@ -149,18 +199,18 @@ WEAP_THROWN = [ Glb.WEAPON_GRENADE, Glb.WEAPON_PROXIMITYMINE, Glb.WEAPON_REMOTEM
 
 WEAP_SHORT_RANGE = [
     Glb.WEAPON_GOLDENPP7, Glb.WEAPON_GOLDENGUN, Glb.WEAPON_AUTO_SHOTGUN, Glb.WEAPON_MOONRAKER,
-    Glb.WEAPON_SILVERPP7, Glb.WEAPON_COUGAR_MAGNUM, Glb.WEAPON_SHOTGUN, Glb.WEAPON_RCP90,
-    Glb.WEAPON_AR33, Glb.WEAPON_PHANTOM, Glb.WEAPON_SNIPER_RIFLE, Glb.WEAPON_DD44, Glb.WEAPON_KNIFE,
-    Glb.WEAPON_ZMG, Glb.WEAPON_D5K, Glb.WEAPON_KF7, Glb.WEAPON_D5K_SILENCED, Glb.WEAPON_ROCKET_LAUNCHER,
-    Glb.WEAPON_GRENADE_LAUNCHER, Glb.WEAPON_PP7, Glb.WEAPON_PP7_SILENCED, Glb.WEAPON_KNIFE_THROWING,
+    Glb.WEAPON_SILVERPP7, Glb.WEAPON_SHOTGUN, Glb.WEAPON_RCP90, Glb.WEAPON_AR33,
+    Glb.WEAPON_COUGAR_MAGNUM, Glb.WEAPON_PHANTOM, Glb.WEAPON_KF7, Glb.WEAPON_SNIPER_RIFLE, Glb.WEAPON_KNIFE,
+    Glb.WEAPON_ZMG, Glb.WEAPON_D5K, Glb.WEAPON_D5K_SILENCED, Glb.WEAPON_ROCKET_LAUNCHER,
+    Glb.WEAPON_GRENADE_LAUNCHER, Glb.WEAPON_DD44, Glb.WEAPON_PP7, Glb.WEAPON_PP7_SILENCED, Glb.WEAPON_KNIFE_THROWING,
     Glb.WEAPON_GRENADE, Glb.WEAPON_KLOBB, Glb.WEAPON_SLAPPERS, Glb.WEAPON_TIMEDMINE, Glb.WEAPON_PROXIMITYMINE
 ]
 
 WEAP_MID_RANGE = [
     Glb.WEAPON_GOLDENPP7, Glb.WEAPON_GOLDENGUN, Glb.WEAPON_MOONRAKER, Glb.WEAPON_SILVERPP7,
-    Glb.WEAPON_COUGAR_MAGNUM, Glb.WEAPON_AUTO_SHOTGUN, Glb.WEAPON_ROCKET_LAUNCHER, Glb.WEAPON_GRENADE_LAUNCHER,
-    Glb.WEAPON_RCP90, Glb.WEAPON_SNIPER_RIFLE, Glb.WEAPON_AR33, Glb.WEAPON_PHANTOM, Glb.WEAPON_SHOTGUN,
-    Glb.WEAPON_DD44, Glb.WEAPON_ZMG, Glb.WEAPON_D5K, Glb.WEAPON_KF7, Glb.WEAPON_D5K_SILENCED, Glb.WEAPON_PP7,
+    Glb.WEAPON_ROCKET_LAUNCHER, Glb.WEAPON_GRENADE_LAUNCHER, Glb.WEAPON_RCP90,
+    Glb.WEAPON_COUGAR_MAGNUM, Glb.WEAPON_SNIPER_RIFLE, Glb.WEAPON_AR33, Glb.WEAPON_PHANTOM, Glb.WEAPON_AUTO_SHOTGUN,
+    Glb.WEAPON_D5K, Glb.WEAPON_ZMG, Glb.WEAPON_KF7, Glb.WEAPON_D5K_SILENCED, Glb.WEAPON_SHOTGUN, Glb.WEAPON_DD44, Glb.WEAPON_PP7,
     Glb.WEAPON_PP7_SILENCED, Glb.WEAPON_KNIFE_THROWING, Glb.WEAPON_GRENADE, Glb.WEAPON_KLOBB,
     Glb.WEAPON_TIMEDMINE, Glb.WEAPON_PROXIMITYMINE, Glb.WEAPON_KNIFE, Glb.WEAPON_SLAPPERS
 ]
@@ -169,8 +219,8 @@ WEAP_LONG_RANGE = [
     Glb.WEAPON_GOLDENPP7, Glb.WEAPON_GOLDENGUN, Glb.WEAPON_SILVERPP7, Glb.WEAPON_MOONRAKER,
     Glb.WEAPON_COUGAR_MAGNUM, Glb.WEAPON_SNIPER_RIFLE, Glb.WEAPON_RCP90, Glb.WEAPON_AR33,
     Glb.WEAPON_ROCKET_LAUNCHER, Glb.WEAPON_PP7, Glb.WEAPON_D5K, Glb.WEAPON_PP7_SILENCED,
-    Glb.WEAPON_D5K_SILENCED, Glb.WEAPON_KF7, Glb.WEAPON_PHANTOM, Glb.WEAPON_AUTO_SHOTGUN,
-    Glb.WEAPON_SHOTGUN, Glb.WEAPON_DD44, Glb.WEAPON_ZMG, Glb.WEAPON_GRENADE, Glb.WEAPON_KLOBB,
+    Glb.WEAPON_D5K_SILENCED, Glb.WEAPON_KF7, Glb.WEAPON_PHANTOM, Glb.WEAPON_ZMG, Glb.WEAPON_DD44,
+    Glb.WEAPON_AUTO_SHOTGUN, Glb.WEAPON_SHOTGUN, Glb.WEAPON_GRENADE, Glb.WEAPON_KLOBB,
     Glb.WEAPON_KNIFE_THROWING, Glb.WEAPON_GRENADE_LAUNCHER, Glb.WEAPON_PROXIMITYMINE,
     Glb.WEAPON_TIMEDMINE, Glb.WEAPON_KNIFE, Glb.WEAPON_SLAPPERS
 ]

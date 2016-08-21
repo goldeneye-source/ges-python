@@ -1,4 +1,4 @@
-################ Copyright 2005-2013 Team GoldenEye: Source #################
+################ Copyright 2005-2016 Team GoldenEye: Source #################
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
@@ -18,6 +18,7 @@
 #############################################################################
 from GEGamePlay import CBaseScenario, CScenarioHelp
 import GEGlobal, GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules
+from .Utils.GEItemTracker import GEItemTracker
 
 class GEScenarioHelp( CScenarioHelp ):
     pass
@@ -26,6 +27,7 @@ class GEScenario( CBaseScenario ):
     def __init__( self ):
         super( GEScenario, self ).__init__()
         self.ClearEventHooks()
+        self.itemTracker = GEItemTracker( self )
 
     def __del__( self ):
         # Uncomment the below line to confirm that your python scenarios are being deleted!
@@ -58,7 +60,7 @@ class GEScenario( CBaseScenario ):
         raise NameError
 
     def GetTeamPlay( self ):
-        return GEGlobal.TEAMPLAY_NONE
+        return GEGlobal.TEAMPLAY_TOGGLE
 
     def GetScenarioHelp( self, help_obj ):
         '''
@@ -71,6 +73,8 @@ class GEScenario( CBaseScenario ):
 
     def OnUnloadGamePlay( self ):
         self.ClearEventHooks()
+        for i in range(0, 8): # Get rid of lingering progress bars.
+            GEUtil.RemoveHudProgressBar( GEGlobal.TEAM_NONE, i )
 
     def OnPlayerConnect( self, player ):
         pass
@@ -83,6 +87,11 @@ class GEScenario( CBaseScenario ):
 
     def OnCVarChanged( self, name, oldvalue, newvalue ):
         pass
+
+    def BeforeSetupRound( self ):
+        """Called right before the round is set up on the map (before weapons/armor is placed)"""
+        # Reset the item tracker so we aren't dealing with stale information
+        self.itemTracker.Clear()
 
     def OnRoundBegin( self ):
         """Called after the world reloads and prior to players being spawned"""
@@ -124,7 +133,7 @@ class GEScenario( CBaseScenario ):
     def CanPlayerChangeChar( self, player, ident ):
         return True
 
-    def CanPlayerChangeTeam( self, player, oldteam, newteam ):
+    def CanPlayerChangeTeam( self, player, oldteam, newteam, wasforced ):
         return True
 
     def CanPlayerHaveItem( self, player, weapon ):
@@ -145,6 +154,24 @@ class GEScenario( CBaseScenario ):
     def CanMatchEnd( self ):
         return True
 
+    def OnWeaponSpawned( self, weapon ):
+        pass
+
+    def OnWeaponRemoved( self, weapon ):
+        pass
+
+    def OnArmorSpawned( self, armor ):
+        pass
+
+    def OnArmorRemoved( self, armor ):
+        pass
+
+    def OnAmmoSpawned( self, armor ):
+        pass
+
+    def OnAmmoRemoved( self, armor ):
+        pass
+
     def OnTokenSpawned( self, token ):
         pass
 
@@ -158,6 +185,9 @@ class GEScenario( CBaseScenario ):
         pass
 
     def OnTokenAttack( self, token, player, position, direction ):
+        pass
+
+    def OnEnemyTokenTouched( self, token, player ):
         pass
 
     def OnCaptureAreaSpawned( self, area ):

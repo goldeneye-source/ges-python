@@ -1,4 +1,4 @@
-################ Copyright 2005-2013 Team GoldenEye: Source #################
+################ Copyright 2005-2016 Team GoldenEye: Source #################
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
@@ -16,12 +16,14 @@
 # along with GoldenEye: Source's Python Library.
 # If not, see <http://www.gnu.org/licenses/>.
 #############################################################################
-from .DeathMatch import DeathMatch
-import GEEntity, GEPlayer, GEUtil, GEWeapon, GEMPGameRules, GEGlobal
+from GamePlay import GEScenario
+import GEPlayer, GEUtil, GEMPGameRules as GERules, GEGlobal as Glb
 
-USING_API = GEGlobal.API_VERSION_1_1_1
+USING_API = Glb.API_VERSION_1_2_0
 
-class DrNoArmor( DeathMatch ):
+# More or less just deathmatch without armor.
+
+class DrNoArmor( GEScenario ):
     def GetPrintName( self ):
         return "Dr. No Armor"
 
@@ -29,12 +31,11 @@ class DrNoArmor( DeathMatch ):
         help_obj.SetDescription( "#GES_GP_DEATHMATCH_HELP" )
 
     def GetGameDescription( self ):
-        if GEMPGameRules.IsTeamplay():
+        if GERules.IsTeamplay():
             return "Team Dr. No Armor"
         else:
             return "Dr. No Armor"
 
     def OnRoundBegin( self ):
         super( DrNoArmor, self ).OnRoundBegin()
-        GEMPGameRules.DisableArmorSpawns()
-
+        GERules.DisableArmorSpawns()

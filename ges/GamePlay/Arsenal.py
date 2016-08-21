@@ -1,4 +1,4 @@
-################ Copyright 2005-2013 Team GoldenEye: Source #################
+################ Copyright 2005-2016 Team GoldenEye: Source #################
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
@@ -20,43 +20,34 @@ from . import GEScenario
 from .Utils.GEWarmUp import GEWarmUp
 from .Utils.GEPlayerTracker import GEPlayerTracker
 from .Utils import GetPlayers, clamp, _
-from random import shuffle
-import GEUtil, GEMPGameRules as GERules, GEGlobal, GEPlayer, GEWeapon
+import GEUtil, GEMPGameRules as GERules, GEGlobal as Glb, GEPlayer, GEWeapon
 
 # Arsenal
 # Coded by Troy and Killer Monkey
+# and completely ruined by E-S
 # /////////////////////////// Scenario Data ///////////////////////////
 
-USING_API = GEGlobal.API_VERSION_1_1_1
+USING_API = Glb.API_VERSION_1_2_0
 
-weaponList = [
-    ( "weapon_golden_pp7", 50 ), ( "weapon_golden_gun", 20 ), ( "weapon_moonraker", 0 ), ( "weapon_silver_pp7", 50 ),
-    ( "weapon_rcp90", 150 ), ( "weapon_ar33", 150 ), ( "weapon_auto_shotgun", 40 ), ( "weapon_cmag", 50 ), ( "weapon_phantom", 150 ),
-    ( "weapon_shotgun", 40 ), ( "weapon_sniper_rifle", 75 ), ( "weapon_kf7", 150 ), ( "weapon_d5k", 150 ), ( "weapon_zmg", 150 ),
-    ( "weapon_pp7", 50 ), ( "weapon_dd44", 50 ), ( "weapon_klobb", 150 ), ( "weapon_knife", 0 )
-]
+maxLevel = 8
 
-weaponListCopy = list( weaponList )
-maxLevel = len( weaponList ) - 1
-
-TR_ROUND = "round"
-TR_LEVEL = "level"
-TR_SPAWNED = "spawned"
+TR_LEVEL = "level" # Player's current level.
+TR_LEVELKILLS = "levelkills" # How many kills the player has earned this level.
+TR_SPAWNED = "spawned" # If the player has spawned in yet.
 
 class Arsenal( GEScenario ):
     def __init__( self ):
         GEScenario.__init__( self )
 
         self.WaitingForPlayers = True
-        self.RoundNumber = 0
-        self.notice_WaitingForPlayers = 0
+        self.weaponList = []
 
         self.warmupTimer = GEWarmUp( self )
         self.pltracker = GEPlayerTracker( self )
 
         # CVar Holders
-        self.RoundLimit = 3
-        self.RandomWeapons = False
+        self.KillsPerLevel = 2 # How many kills it takes to advance to the next level
+        self.LevelBoost = True # If players who joined late get boosted to the level of the player in last place.
 
     def GetPrintName( self ):
         return "#GES_GP_ARSENAL_NAME"
@@ -68,54 +59,38 @@ class Arsenal( GEScenario ):
         return "Arsenal"
 
     def GetTeamPlay( self ):
-        return GEGlobal.TEAMPLAY_NONE
+        return Glb.TEAMPLAY_NONE
 
     def OnLoadGamePlay( self ):
-        global weaponList
-
-        GEUtil.PrecacheSound( "GEGamePlay.Token_Drop_Enemy" )
-        GEUtil.PrecacheSound( "GEGamePlay.Token_Grab" )
-        GEUtil.PrecacheSound( "GEGamePlay.Token_Grab_Enemy" )
+        GEUtil.PrecacheSound( "GEGamePlay.Token_Drop_Enemy" ) # Used for final weapon.
+        GEUtil.PrecacheSound( "GEGamePlay.Level_Up" ) # Plays when level is gained
+        GEUtil.PrecacheSound( "GEGamePlay.Level_Down" ) # Plays when level is lost
 
         self.CreateCVar( "ar_lowestlevel", "1", "Give new players the lowest active player's level. (Use 0 to start new players at level 1)" )
-        self.CreateCVar( "ar_warmuptime", "20", "The warmup time in seconds. (Use 0 to disable)" )
-        self.CreateCVar( "ar_numrounds", "3", "The number of rounds that should be played per map. (Use 0 to play until time runs out, Max is 10)" )
-        self.CreateCVar( "ar_randomweapons", "0", "Randomize the weapons every round." )
-
-        # Make sure we don't start out in wait time if we changed gameplay mid-match
+        self.CreateCVar( "ar_warmuptime", "15", "The warmup time in seconds. (Use 0 to disable)" )
+        self.CreateCVar( "ar_killsperlevel", "2", "How many kills is required to level up to the next weapon." )
+        
+        # Make sure we don't start out in wait time or have a warmup if we changed gameplay mid-match
         if GERules.GetNumActivePlayers() >= 2:
             self.WaitingForPlayers = False
+            self.warmupTimer.StartWarmup(0)
 
-        # Restore the default weapon list
-        if weaponList != weaponListCopy:
-            weaponList = list( weaponListCopy )
+        GERules.EnableSuperfluousAreas()
+        GERules.EnableInfiniteAmmo()
 
     def OnUnloadGamePlay(self):
-        GEScenario.OnUnloadGamePlay( self )
+        super( Arsenal, self ).OnUnloadGamePlay()
         self.warmupTimer = None
         self.pltracker = None
 
     def OnCVarChanged( self, name, oldvalue, newvalue ):
-        global weaponList
-
-        if name == "ar_numrounds":
-            # Clamp the roundlimit
-            val = clamp( int( newvalue ), 0, 10 )
-            if val != self.RoundLimit:
-                if self.RoundNumber > val and val > 0:
-                    GERules.EndMatch()
-                self.RoundLimit = val
-        elif name == "ar_randomweapons":
-            val = int( newvalue )
-            if val == 0 and self.RandomWeapons:
-                self.RandomWeapons = False
-                weaponList = list( weaponListCopy )
-                if not GERules.IsIntermission():
-                    GERules.EndRound()
-            elif val != 0 and not self.RandomWeapons:
-                self.RandomWeapons = True
-                if not GERules.IsIntermission():
-                    GERules.EndRound()
+        if name == "ar_killsperlevel":
+            self.KillsPerLevel = int( newvalue )
+        elif name == "ar_lowestlevel":
+            if int( newvalue ) > 0:
+                self.LevelBoost = True
+            else:
+                self.LevelBoost = False
         elif name == "ar_warmuptime":
             if self.warmupTimer.IsInWarmup():
                 val = int( newvalue )
@@ -131,53 +106,50 @@ class Arsenal( GEScenario ):
         GERules.DisableAmmoSpawns()
         GERules.DisableArmorSpawns()
 
-        if self.RandomWeapons:
-            shuffle( weaponList )
+        self.weaponList = [] #Clear our weapon list
+
+        # Store all the current weaponset's weapons in a list for easy access.
+        for i in range(0, 8):
+            self.weaponList.append( GEWeapon.WeaponClassname(GERules.GetWeaponInSlot(i)) )
+
+        # Reset all player's statistics 
+        self.pltracker.SetValueAll( TR_LEVEL, 0 )
+        self.pltracker.SetValueAll( TR_LEVELKILLS, 0 )
 
         for player in GetPlayers():
-            self.SetLevel( player, 0 )
-            self.pltracker[player][TR_ROUND] = True
-            if player.GetTeamNumber() != GEGlobal.TEAM_SPECTATOR:
-                self.PrintCurLevel( player )
-
-        if not self.WaitingForPlayers and not self.warmupTimer.IsInWarmup():
-            self.RoundNumber += 1
-
-    def OnRoundEnd( self ):
-        if self.RoundNumber == self.RoundLimit and self.RoundLimit > 0:
-            GERules.EndMatch()
+            self.ar_SetLevel( player, 0 )
+            self.ar_SetKills( player, 0 )
+            if player.GetTeamNumber() != Glb.TEAM_SPECTATOR:
+                self.ar_PrintCurLevel( player )
 
     def OnPlayerConnect( self, player ):
-        self.SetLevel( player, 0 )
-        self.pltracker[player][TR_ROUND] = True
+        self.pltracker[player][TR_LEVEL] = 0
+        self.pltracker[player][TR_LEVELKILLS] = 0
         self.pltracker[player][TR_SPAWNED] = False
 
     def OnPlayerSpawn( self, player ):
         if not self.WaitingForPlayers and not self.warmupTimer.IsInWarmup():
-            if not self.pltracker[player][TR_SPAWNED] and int( GEUtil.GetCVarValue( "ar_lowestlevel" ) ) != 0:
-                self.SetLevel( player, self.LowestLevel() )
-
-            if self.pltracker[player][TR_ROUND] and self.RoundLimit > 0:
-                if self.RoundNumber < self.RoundLimit:
-                    GEUtil.HudMessage( player, _( "#GES_GP_AR_ROUNDCOUNT", self.RoundNumber, self.RoundLimit ), -1, 0.02, GEUtil.Color( 170, 170, 170, 220 ), 3.5 )
+            if not self.pltracker[player][TR_SPAWNED]:
+                if self.LevelBoost:
+                    self.ar_SetLevel( player, self.ar_LowestLevel() ) # Give the player a calculated minimum level on their first spawn this round so they don't start behind.
                 else:
-                    GEUtil.HudMessage( player, "#GES_GP_AR_FINALROUND", -1, 0.02, GEUtil.Color( 206, 43, 43, 255 ), 3.5 )
+                    self.ar_SetLevel( player, 0 ) # We still need to do this so we display the level intro text.
 
-                self.pltracker[player][TR_ROUND] = False
-
-        self.GivePlayerWeapons( player )
-        self.pltracker[player][TR_SPAWNED] = True
+                self.pltracker[player][TR_SPAWNED] = True
+            else: # If this isn't our first spawn, the SetLevel command isn't going to give us our weapon so we have to do it here.
+                self.ar_GivePlayerWeapons( player )
 
         if player.IsInitialSpawn():
             GEUtil.PopupMessage( player, "#GES_GP_ARSENAL_NAME", "#GES_GPH_AR_GOAL" )
 
     def OnPlayerKilled( self, victim, killer, weapon ):
-        if self.WaitingForPlayers or self.warmupTimer.IsInWarmup() or not victim:
+        if self.WaitingForPlayers or self.warmupTimer.IsInWarmup() or GERules.IsIntermission() or not victim:
             return
 
-        kL = self.GetLevel( killer )
-        vL = self.GetLevel( victim )
+        kL = self.ar_GetLevel( killer )
+        vL = self.ar_GetLevel( victim )
 
+        # Convert projectile entity names to their corresponding weapon
         name = weapon.GetClassname().lower()
         if name.startswith( "npc_" ):
             if name == "npc_grenade":
@@ -195,171 +167,185 @@ class Arsenal( GEScenario ):
 
         if not killer or victim == killer:
             # World kill or suicide
-            if vL > 0:
-                self.IncrementLevel( victim, -1 )
-                GEUtil.PlaySoundTo( victim, "GEGamePlay.Token_Drop_Enemy" )
-                GEUtil.EmitGameplayEvent( "ar_levelchange", str( victim.GetUserID() ), str( vL + 1 ), "suicide" )
-        elif name == weaponList[kL][0] or name == "weapon_knife" or name == "weapon_slappers":
+            self.ar_IncrementKills( victim, -1 )
+        else:
             # Normal kill
-            if name == "weapon_knife" and vL > 0:
-                self.IncrementLevel( victim, -1 )
-                GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_GUNGAME_KNIFED", victim.GetCleanPlayerName() )
-                GEUtil.PlaySoundTo( victim, "GEGamePlay.Token_Drop_Enemy" )
-                GEUtil.EmitGameplayEvent( "ar_levelchange", str( victim.GetUserID() ), str( vL + 1 ), "knifed" )
-            elif name == "weapon_slappers":
+            if name == "weapon_slappers" or name == "player": # Slappers or killbind.
+                self.ar_IncrementLevel( victim, -1 )
                 if vL > 0:
-                    self.IncrementLevel( victim, -1 )
-                    GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_GUNGAME_SLAPPED", victim.GetCleanPlayerName(), killer.GetCleanPlayerName() )
-                    GEUtil.PlaySoundTo( victim, "GEGamePlay.Token_Drop_Enemy" )
-                    GEUtil.EmitGameplayEvent( "ar_levelchange", str( victim.GetUserID() ), str( vL + 1 ), "slapped" )
+                    self.ar_IncrementLevel( killer, 1 ) # Jump forward an entire level, keeping our kill count.
+                    msg = _( "#GES_GP_GUNGAME_SLAPPED", victim.GetCleanPlayerName(), killer.GetCleanPlayerName() )
+                    GEUtil.PostDeathMessage( msg )
+                    GEUtil.EmitGameplayEvent( "ar_levelsteal", str( killer.GetUserID() ), str( victim.GetUserID() ), "", "", True ) #Acheivement event
                 else:
-                    GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_GUNGAME_SLAPPED_NOLOSS", victim.GetCleanPlayerName(), killer.GetCleanPlayerName() )
+                    msg = _( "#GES_GP_GUNGAME_SLAPPED_NOLOSS", killer.GetCleanPlayerName() )
+                    GEUtil.PostDeathMessage( msg )
+                    self.ar_IncrementKills( killer, 1 ) # We can't steal a whole level but we can at least get a kill.
 
-                killer.SetArmor( int( GEGlobal.GE_MAX_ARMOR ) )
+                killer.SetArmor( int( Glb.GE_MAX_ARMOR ) )
+            elif maxLevel == self.ar_GetLevel( killer ):
+                self.ar_IncrementLevel( killer, 1 ) # Final level only needs one kill.
+            else:
+                self.ar_IncrementKills( killer, 1 )
 
-            self.IncrementLevel( killer, 1 )
-            GEUtil.EmitGameplayEvent( "ar_levelchange", str( killer.GetUserID() ), str( self.GetLevel( killer ) + 1 ) )
-
-            if self.GetLevel( killer ) < maxLevel:
-                GEUtil.PlaySoundTo( killer, "GEGamePlay.Token_Grab" )
-            elif self.GetLevel( killer ) == maxLevel:
-                GEUtil.ClientPrint( None, GEGlobal.HUD_PRINTTALK, "#GES_GP_AR_FINALWEAPON", killer.GetCleanPlayerName() )
-                GEUtil.PlaySoundTo( killer, "GEGamePlay.Token_Grab_Enemy" )
-
-            if self.GetLevel( killer ) <= maxLevel:
-                self.PrintCurLevel( killer )
-                self.GivePlayerWeapons( killer )
-            elif not GERules.IsIntermission():
-                GERules.EndRound()
+        victim.StripAllWeapons() # This prevents the victim from dropping weapons, which might confuse players since there are no pickups.
 
     def OnThink( self ):
-        # Check for insufficient player count
-        if GERules.GetNumActivePlayers() < 2:
-            if not self.WaitingForPlayers:
-                self.notice_WaitingForPlayers = 0
-                GERules.EndRound()
-            elif GEUtil.GetTime() > self.notice_WaitingForPlayers:
-                GEUtil.HudMessage( None, "#GES_GP_WAITING", -1, -1, GEUtil.Color( 255, 255, 255, 255 ), 2.5, 1 )
-                self.notice_WaitingForPlayers = GEUtil.GetTime() + 12.5
-
-            self.warmupTimer.Reset()
-            self.WaitingForPlayers = True
-            return
-        elif self.WaitingForPlayers:
+        #Check to see if we can get out of warmup
+        if self.WaitingForPlayers and GERules.GetNumActivePlayers() > 1:
             self.WaitingForPlayers = False
             if not self.warmupTimer.HadWarmup():
                 self.warmupTimer.StartWarmup( int( GEUtil.GetCVarValue( "ar_warmuptime" ) ), True )
             else:
                 GERules.EndRound( False )
 
+    # I'm not sure if this function is entirely neccecery now, since it was designed to stop people from picking up dropped weapons.
+    # It's a good failsafe at least, since even if players no longer drop weapons on death there are other rare sources for them to get weapons from.
+    # Like thrown throwing knives and explicity spawned weapons, which some community maps might give.
     def CanPlayerHaveItem( self, player, item ):
         weapon = GEWeapon.ToGEWeapon( item )
         if weapon:
             name = weapon.GetClassname().lower()
             pL = self.pltracker[player][TR_LEVEL]
 
-            if pL > maxLevel:
+            if name == "weapon_slappers":
                 return True
 
-            if name == weaponList[pL][0] or name == "weapon_knife" or name == "weapon_slappers":
+            if len(self.weaponList) < pL:
+                return True
+
+            if len(self.weaponList) == pL:
+                return name == "weapon_knife"
+
+            if name == self.weaponList[pL]:
                 return True
 
             return False
 
         return True
 
-    def OnPlayerSay( self, player, text ):
-        if text.lower() == GEGlobal.SAY_COMMAND1:
-            self.PrintWeapons( player )
+    def CanMatchEnd( self ):
+        if GERules.IsIntermission() or GERules.GetNumActivePlayers() < 2: #We just finished a round or it's not possible to get kills.
             return True
-
-        return False
+        else:
+            return False
 
 # /////////////////////////// Utility Functions ///////////////////////////
 
-    def GetLevel( self, player ):
+    # Returns the given player's level
+    def ar_GetLevel( self, player ):
         if not player:
             return -1
 
         return self.pltracker[player][TR_LEVEL]
 
-    def SetLevel( self, player, lvl ):
+    # Set the given player's level to the given amount and give them their weapon.
+    def ar_SetLevel( self, player, lvl ):
         if not player:
             return
 
+        oldlvl = self.pltracker[player][TR_LEVEL]
         self.pltracker[player][TR_LEVEL] = lvl
-        player.SetScore( lvl + 1 )
+        player.SetScore( lvl + 1 ) # Correcting for the fact that "level 1" is actually 0 in the code, 2 is 1, 3 is 2, etc.
+        GEUtil.EmitGameplayEvent( "ar_levelchange", str( player.GetUserID() ), str( lvl ) )
 
-    def IncrementLevel( self, player, amt ):
-        self.SetLevel( player, self.pltracker[player][TR_LEVEL] + amt )
+        # Play effects, but only if we actually changed level.  Also avoids playing effects on first spawn since starting level
+        # is 0 and setlevel is called with 0 on first spawn.  With minimum level above 0 it will play effects, but it should.
+        if lvl != oldlvl and lvl <= maxLevel:
+            if self.ar_GetLevel( player ) == maxLevel: # Final level gets a special sound and announces to everyone.
+                msg = _( "#GES_GP_AR_FINALWEAPON", player.GetCleanPlayerName() )
+                GEUtil.PostDeathMessage( msg )
+                GEUtil.PlaySoundTo( player, "GEGamePlay.Token_Grab_Enemy" )
+            elif lvl > oldlvl: # Gained a level
+                GEUtil.PlaySoundTo( player, "GEGamePlay.Level_Up" )
+            else: # Lost a level.
+                GEUtil.PlaySoundTo( player, "GEGamePlay.Level_Down" )
 
-    def PrintCurLevel( self, player ):
+
+        # Give weapons and print level.
+        if lvl <= maxLevel: # Can't give weapons if we're somehow past the max level.
+            self.ar_PrintCurLevel( player )
+            self.ar_GivePlayerWeapons( player )         
+        elif not GERules.IsIntermission(): # In fact, if we are, we just won!
+            GEUtil.EmitGameplayEvent( "ar_completedarsenal", str( player.GetUserID()), "", "", "", True ) #Used for acheivements so we have to send to clients
+            GERules.EndRound()
+            
+
+    # Set the given player's level kills to the given amount.
+    # Some minimal handling of advancing to other levels with killcount increments other than 1, but the gamemode never uses this so if you
+    # want to modify it to use higher killcount increments for things it might be worth buffing up these functions a bit.
+    def ar_SetKills( self, player, kills ):
+        if not player:
+            return
+        
+        if ( kills >= self.KillsPerLevel ):
+            self.ar_IncrementLevel( player, 1 )
+            self.pltracker[player][TR_LEVELKILLS] = 0
+        elif (kills < 0):
+            self.ar_IncrementLevel( player, -1 )
+            self.pltracker[player][TR_LEVELKILLS] = max(self.KillsPerLevel + kills, 0) # Kills is negative here so we're using it to correct previous level killcount.      
+        else:
+            self.pltracker[player][TR_LEVELKILLS] = kills # No level advancement, just complete the request as asked.
+            msg = _( "#GES_GP_GUNGAME_KILLS", str(self.KillsPerLevel - kills) ) # We didn't increment a level which would have caused a level advancement message.
+            GEUtil.HudMessage( player, msg, -1, 0.71, GEUtil.Color( 220, 220, 220, 255 ), 1.5, 2 ) # So give a killcount message instead.
+
+    # Advance the given player's level by the given amount.
+    def ar_IncrementLevel( self, player, amt ):
+        if (self.pltracker[player][TR_LEVEL] + amt > 0): # Make sure there's enough levels to take off
+            self.ar_SetLevel( player, self.pltracker[player][TR_LEVEL] + amt )
+        else:
+            self.ar_SetKills( player, 0 ) # If we can't take off a level we'll just take all of their kills.
+            self.ar_SetLevel( player, 0 ) # and set them to the lowest level, just in case someone changed the design of the mode and expected to take off 2 or more.
+
+    # Advance the given player's level kills by the given amount.
+    def ar_IncrementKills( self, player, amt ):
+        self.ar_SetKills( player, self.pltracker[player][TR_LEVELKILLS] + amt )
+
+    # Present a HUD message with the player's current level
+    def ar_PrintCurLevel( self, player ):
         if not player:
             return
 
-        lvl = self.GetLevel( player )
+        lvl = self.ar_GetLevel( player )
 
-        name = GEWeapon.WeaponPrintName( weaponList[lvl][0] )
-        GEUtil.ClientPrint( player, GEGlobal.HUD_PRINTTALK, "#GES_GP_GUNGAME_LEVEL", str( lvl + 1 ), name )
+        if lvl < maxLevel:
+            name = GEWeapon.WeaponPrintName( self.weaponList[lvl] )
+        else:
+            name = "Hunting Knife"
 
-    def GivePlayerWeapons( self, player ):
-        if not player or player.IsDead():
+        msg = _( "#GES_GP_GUNGAME_LEVEL", str( lvl + 1 ), name )
+        GEUtil.HudMessage( player, msg, -1, 0.71, GEUtil.Color( 220, 220, 220, 255 ), 3.0, 2 )
+
+    # Give player their level specific weapon and the slappers
+    def ar_GivePlayerWeapons( self, player ):
+        if not player or player.IsDead() or len(self.weaponList) < 7:
             return
 
         player.StripAllWeapons()
 
-        player.GiveNamedWeapon( "weapon_slappers", 0 )
-        player.GiveNamedWeapon( "weapon_knife", 0 )
+        player.GiveNamedWeapon( "weapon_slappers", 0 ) # We only ever have slappers and the weapon of our level
 
-        weap = weaponList[self.GetLevel( player )]
+        lvl = self.ar_GetLevel( player )
 
-        if weap[0] != "weapon_slappers" and weap[0] != "weapon_knife":
-            player.GiveNamedWeapon( weap[0], weap[1] )
+        if maxLevel > lvl:
+            weap = self.weaponList[lvl]
+        else:
+            weap = "weapon_knife" # Last level is always the knife.
 
-        player.WeaponSwitch( weap[0] )
+        if weap != "weapon_slappers":
+            player.GiveNamedWeapon( weap, 800 ) # We use infinite ammo so who cares about exact ammo amounts
 
-    def LowestLevel( self ):
+        player.WeaponSwitch( weap )
+
+    # Calculate the minimum level for players joining in late.
+    def ar_LowestLevel( self ):
         listing = []
         for i in range( 32 ):
             player = GEPlayer.GetMPPlayer( i )
-            if player and player.GetTeamNumber() != GEGlobal.TEAM_SPECTATOR and self.pltracker[player][TR_SPAWNED]:
-                listing.append( self.GetLevel( player ) )
+            if player and player.GetTeamNumber() != Glb.TEAM_SPECTATOR and self.pltracker[player][TR_SPAWNED]:
+                listing.append( self.ar_GetLevel( player ) )
 
         if len( listing ) == 0:
             return 0
 
-        return min( listing )
-
-    def PrintWeapons( self, player ):
-        if not player:
-            return
-
-        curr_level = self.GetLevel( player )
-        # Players above the max level don't see anything
-        if curr_level > maxLevel:
-            return
-
-        # Players at the max level see this message only
-        if curr_level == maxLevel:
-            GEUtil.PopupMessage( player, "#GES_GP_ARSENAL_NAME", "You are on the final level!" )
-            return
-
-        # Start with the player's current level
-        arWeapons = "Current level %i: #%s\n" % ( curr_level + 1, GEWeapon.WeaponPrintName( weaponList[curr_level][0] ) )
-
-        # Output up to the next 4 weapons for this player, not including the final weapon
-        count = 0
-        for i in range( curr_level + 1, maxLevel ):
-            count += 1
-            arWeapons += "Level %i: #%s\n" % ( i + 1, GEWeapon.WeaponPrintName( weaponList[i][0] ) )
-            if count == 4:
-                break
-
-        # Tack on the final weapon
-        if curr_level >= maxLevel - 5:
-            arWeapons += "Final level %i: #%s\n" % ( len( weaponList ), GEWeapon.WeaponPrintName( weaponList[-1][0] ) )
-        else:
-            arWeapons += "\nFinal level %i: #%s\n" % ( len( weaponList ), GEWeapon.WeaponPrintName( weaponList[-1][0] ) )
-
-        # Finally show the message to the requesting player
-        GEUtil.PopupMessage( player, "#GES_GP_ARSENAL_NAME", arWeapons )
+        return min( listing ) # The bottom might not be level 1 but we still start at the bottom.

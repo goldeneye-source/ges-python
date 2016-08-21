@@ -1,4 +1,4 @@
-################ Copyright 2005-2013 Team GoldenEye: Source #################
+################ Copyright 2005-2016 Team GoldenEye: Source #################
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
@@ -20,8 +20,10 @@ from GamePlay import GEScenario
 from .Utils import GetPlayers
 import GEPlayer, GEUtil, GEMPGameRules as GERules, GEGlobal as Glb
 
-USING_API = Glb.API_VERSION_1_1_1
+USING_API = Glb.API_VERSION_1_2_0
 
+# Deathmatch uses all the default behavior defined in GamePlay\__init__.py
+# so the only thing we need to define here is the text entries it uses.
 class DeathMatch( GEScenario ):
     def GetPrintName( self ):
         return "#GES_GP_DEATHMATCH_NAME"
@@ -34,32 +36,3 @@ class DeathMatch( GEScenario ):
             return "Team Deathmatch"
         else:
             return "Deathmatch"
-
-    def GetTeamPlay( self ):
-        return Glb.TEAMPLAY_TOGGLE
-
-    def OnLoadGamePlay( self ):
-        GERules.SetAllowTeamSpawns( False )
-        self.CreateCVar( "dm_fraglimit", "0", "Enable frag limit for DeathMatch." )
-
-    def OnThink( self ):
-        # Frag limit checks
-        frag_limit = int( GEUtil.GetCVarValue( "dm_fraglimit" ) )
-        if frag_limit != 0:
-            if GERules.IsTeamplay():
-                # Check if Janus or MI6 team has reached the frag limit
-                team_janus = GERules.GetTeam( Glb.TEAM_JANUS );
-                team_mi6 = GERules.GetTeam( Glb.TEAM_MI6 );
-
-                janus_score = team_janus.GetRoundScore() + team_janus.GetMatchScore()
-                mi6_score = team_mi6.GetRoundScore() + team_mi6.GetMatchScore()
-
-                # If either Janus or MI6 reached the frag limit, immediately end the match
-                if janus_score >= frag_limit or mi6_score >= frag_limit:
-                    GERules.EndMatch()
-            else:
-                # Check if any player has reached the frag limit
-                for player in GetPlayers():
-                    player_score = player.GetMatchScore() + player.GetScore()
-                    if player_score >= frag_limit:
-                        GERules.EndMatch()

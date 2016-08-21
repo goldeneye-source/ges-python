@@ -1,4 +1,4 @@
-################ Copyright 2005-2013 Team GoldenEye: Source #################
+################ Copyright 2005-2016 Team GoldenEye: Source #################
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
@@ -18,11 +18,18 @@
 #############################################################################
 from . import GEScenario, GEScenarioHelp
 from .Utils import plural, clamp, choice, _
+from random import randint
 import GEEntity, GEPlayer, GEUtil, GEMPGameRules, GEGlobal
 
-USING_API = GEGlobal.API_VERSION_1_1_1
+USING_API = GEGlobal.API_VERSION_1_2_0
 EP_SHOUT_COLOR = GEUtil.CColor( 240, 200, 120, 170 )
 FT_DEBUG = False
+
+# I do not reccomend directly copying code from Living Daylights. It's in need
+# of an update and does not use many of the new conventions. GEMPGameRules and GEGlobal
+# are not substituted for and some methods of doing things here do not take advantage
+# of new features.  Keep this in mind when using code from this file as a guide
+# for your own projects.
 
 def ep_incrementscore( player, frags ):
     GEMPGameRules.GetTeam( player.GetTeamNumber() ).AddRoundScore( frags )
@@ -44,8 +51,8 @@ def ep_shout( msg ):
     return msg
 
 class LivingDaylightsFlag:
-    LEVEL_LIMIT = 10
-    ESCAPE_TIME = 80
+    LEVEL_LIMIT = 5
+    ESCAPE_TIME = 60
     ESCAPE_AP_LIMIT = 40
     AGE_SCALE = 1.0
     BONUS_ITEM = [10, 15, 25, 35]
@@ -86,12 +93,13 @@ class LivingDaylightsFlag:
             if force:
                 ep_shout( "Adrenaline trigger." )
                 self.adrenaline = self.ADREN_MAX
+                self.nextadrcalctime = 0
                 self.escape_ap = min( self.ESCAPE_AP_LIMIT, self.escape_ap + inflicted_damage )
             else:
                 ep_shout( "No adrenaline." )
 
     def exp_this_level( self, req_level ):
-        return ( clamp( req_level, 1, self.LEVEL_LIMIT ) + 2 ) * 10
+        return ( clamp( req_level, 1, self.LEVEL_LIMIT ) + 5 ) * 10
 
     def i_am_held( self ):
         if self.token_id != 0 and self.player_id != 0:
@@ -117,7 +125,6 @@ class LivingDaylightsFlag:
             if self.player_id != 0:
                 self.team_previous = ep_player_by_id( self.player_id ).GetTeamNumber()
         self.player_id = 0
-        self.earnings = 0
         self.earnings_total = 0
         self.escapes = 0
         self.escape_ap = 0
@@ -125,6 +132,7 @@ class LivingDaylightsFlag:
         self.exp_to_escape = -1
         self.armor_up = -1
         self.adrenaline = 0
+        self.nextadrcalctime = 0
 
     def zot( self ):
         # double zeroed because Python is lame.
@@ -157,6 +165,7 @@ class LivingDaylights( GEScenario ):
 
     PERK_ADREN = 0.3
     PERK_SPEED = 0.025
+    BOOST_CALC_RATE = 1
 
     THEFT_DELTA = 1
 
@@ -180,8 +189,6 @@ class LivingDaylights( GEScenario ):
             if flag.age( 1, True ) :
                 self.ft_creditcarrier( flag, 1 )
                 self.ft_perk_speed( j )
-            if flag.armor_up > -1:
-                self.ft_escapee_armorapply( flag )
 
     def ft_announceearning( self, flag, frags ):
         player = ep_player_by_id( flag.player_id )
@@ -310,9 +317,9 @@ class LivingDaylights( GEScenario ):
         if flagindex >= 0:
             quality = -1
             if itemname.startswith( "item_armorvest_half" ):
-                quality = 2
+                quality = int(3 * clamp(player.GetArmor()/GEGlobal.GE_MAX_ARMOR - 0.5, 0, 1)) - 1
             elif itemname.startswith( "item_armorvest" ):
-                quality = 3
+                quality = int(4 * min(player.GetArmor()/GEGlobal.GE_MAX_ARMOR, 1)) - 1
             elif itemname.startswith( "weapon_" ):
                 quality = 1
             elif itemname.startswith( "ge_ammo" ):
@@ -324,12 +331,13 @@ class LivingDaylights( GEScenario ):
         return True
 
     def ft_perk_speed( self, flagindex ):
-        if flagindex >= 0 and self.flaglist[flagindex].i_am_held():
+        if flagindex >= 0 and self.flaglist[flagindex].i_am_held() and self.flaglist[flagindex].nextadrcalctime < GEUtil.GetTime():
             flag = self.flaglist[flagindex]
             player = ep_player_by_id( flag.player_id )
             perk = ( 1.0 + ( float( GEMPGameRules.GetNumActivePlayers() ) + ( float( flag.adrenaline ) * self.PERK_ADREN ) ) * self.PERK_SPEED ) ** 0.5
             ep_shout( "[Perk Speed] %f" % perk )
-            player.SetSpeedMultiplier( min( perk, choice( GEMPGameRules.IsTeamplay(), 1.20, 1.35 ) ) )
+            player.SetSpeedMultiplier( min( perk, choice( GEMPGameRules.IsTeamplay(), 1.00, 1.10 ) ) )
+            self.flaglist[flagindex].nextadrcalctime = GEUtil.GetTime() + self.BOOST_CALC_RATE
 
     def ft_playercarries( self, player ):
         return self.ft_flagindexbyplayer( player ) != -1
@@ -485,16 +493,17 @@ class LivingDaylights( GEScenario ):
     def OnPlayerKilled( self, victim, killer, weapon ):
         if victim == None:
             return
-        # Disconnecting player_previous to prevent multiple penalties.
+
         flagindex = self.ft_flagindexbyplayer( victim )
+        bounty = min( self.flaglist[flagindex].earnings, self.flaglist[flagindex].LEVEL_LIMIT )
         if flagindex >= 0:
-            self.flaglist[flagindex].player_previous = 0
-            GEUtil.EmitGameplayEvent( "ld_flagdropped", str( victim.GetUserID() ), str( killer.GetUserID() ) )
+            self.flaglist[flagindex].player_previous = 0 # Disconnecting player_previous to prevent multiple penalties.
+            self.flaglist[flagindex].earnings = 0
+            GEUtil.EmitGameplayEvent( "ld_flagdropped", str( victim.GetUserID() ), str( killer.GetUserID() if killer else -1 ) )
 
         vid = GEEntity.GetUID( victim )
         kid = GEEntity.GetUID( killer )
-        ep_shout( "[OPK] Victim %d, Killer %d, VFlag Index %d" % ( vid, kid, flagindex ) )
-        bounty = min( self.flaglist[flagindex].earnings, self.flaglist[flagindex].LEVEL_LIMIT )
+        ep_shout( "[OPK] Victim %d, Killer %d, VFlag Index %d, Bounty %d" % ( vid, kid, flagindex, bounty ) )
 
         # Suicide
         if killer == None or killer.GetIndex() == 0 or vid == kid or GEMPGameRules.IsTeamplay() and victim.GetTeamNumber() == killer.GetTeamNumber():
@@ -531,6 +540,7 @@ class LivingDaylights( GEScenario ):
         tokenmgr = GEMPGameRules.GetTokenMgr()
         tokenmgr.SetupToken( self.TokenClass, limit=1, location=GEGlobal.SPAWN_TOKEN, allow_switch=False,
                             glow_color=self.TokenGlow, respawn_delay=30.0, print_name="#GES_GP_LD_OBJ",
+                            skin = -1,
                             view_model="models/weapons/tokens/v_flagtoken.mdl",
                             world_model="models/weapons/tokens/w_flagtoken.mdl" )
 
@@ -541,6 +551,7 @@ class LivingDaylights( GEScenario ):
         GEUtil.PrecacheSound( "GEGamePlay.Token_Grab" )
         GEUtil.PrecacheSound( "Buttons.beep_ok" )
         GEUtil.PrecacheSound( "Buttons.beep_denied" )
+        GEMPGameRules.DisableSuperfluousAreas()
 
     def OnRoundBegin( self ):
         self.ft_zot()
@@ -560,13 +571,13 @@ class LivingDaylights( GEScenario ):
         self.ft_teambalancebars()
         self.ft_showteamflags( player )
 
-    def CanPlayerChangeTeam( self, player, oldteam, newteam ):
+    def CanPlayerChangeTeam( self, player, oldteam, newteam, wasforced ):
         # If we switched from DM to Team (or vice versa) or Spectating, reset help
         if oldteam == GEGlobal.TEAM_SPECTATOR \
           or oldteam == GEGlobal.TEAM_NONE and newteam >= GEGlobal.TEAM_MI6 \
           or oldteam >= GEGlobal.TEAM_MI6 and newteam == GEGlobal.TEAM_NONE:
             # Reset this players help archive so they don't recall old help
-            player.SetInitialSpawn( True )
+            player.SetInitialSpawn( )
 
         return True
 
@@ -599,13 +610,12 @@ class LivingDaylights( GEScenario ):
                 self.ft_escapebar( self.flaglist[v_flagindex], victim )
         if k_flagindex >= 0:
             # Flag carrier steals a point on successful attack.
-            if victim.GetRoundScore() > 0:
-                ep_incrementscore( victim, -self.THEFT_DELTA )
-                ep_incrementscore( killer, self.THEFT_DELTA )
-                GEUtil.PlaySoundTo( killer, "Buttons.beep_ok" )
-                GEUtil.PlaySoundTo( victim, "Buttons.Token_Knock" )
-                ep_shout( "Point stolen from %s via slap." % victim.GetPlayerName() )
-                GEUtil.EmitGameplayEvent( "ld_flagpoint", str( killer.GetUserID() ), str( victim.GetUserID() ), "flaghit", "1" )
+            ep_incrementscore( victim, -self.THEFT_DELTA )
+            ep_incrementscore( killer, self.THEFT_DELTA )
+            GEUtil.PlaySoundTo( killer, "Buttons.beep_ok" )
+            GEUtil.PlaySoundTo( victim, "Buttons.Token_Knock" )
+            ep_shout( "Point stolen from %s via slap." % victim.GetPlayerName() )
+            GEUtil.EmitGameplayEvent( "ld_flagpoint", str( killer.GetUserID() ), str( victim.GetUserID() ), "flaghit", "1", True )
         return health, armour
 
     def CalcFinalScores( self ):
@@ -615,7 +625,7 @@ class LivingDaylights( GEScenario ):
         self.ft_registerflag( GEEntity.GetUID( token ) )
         GEMPGameRules.GetRadar().AddRadarContact( token, GEGlobal.RADAR_TYPE_TOKEN, True, "", self.COLOR_COLD )
         GEMPGameRules.GetRadar().SetupObjective( token, GEGlobal.TEAM_NONE, "!%s" % self.TokenClass, "#GES_GP_LD_OBJ_TAKE", GEUtil.CColor( 220, 220, 220, 200 ) )
-        token.SetSkin( 0 )
+        token.SetSkin( randint(8, 28) )
         self.ft_teambalancebars()
         self.ft_showteamflags()
 
@@ -634,23 +644,14 @@ class LivingDaylights( GEScenario ):
         # Support team colors!
         if GEMPGameRules.IsTeamplay():
             if player.GetTeamNumber() == GEGlobal.TEAM_MI6:
-                skin = 1
                 color = self.COLOR_MI6
             else:
-                skin = 2
                 color = self.COLOR_JS
 
-            token.SetSkin( skin )
             GEMPGameRules.GetRadar().SetupObjective( player, GEGlobal.TEAM_NONE, "!%s" % self.TokenClass, "", color )
         else:
             GEMPGameRules.GetRadar().SetupObjective( player, GEGlobal.TEAM_NONE, "!%s" % self.TokenClass, "", self.COLOR_HOLD )
 
-        health_coefficient = 2.0 * float( player.GetHealth() + player.GetArmor() ) / float( player.GetMaxHealth() + player.GetMaxArmor() )
-        player.SetHealth( int( GEGlobal.GE_MAX_HEALTH ) )
-        player.SetArmor( int( GEGlobal.GE_MAX_ARMOR ) )
-        # Suppress Armor pickup
-        player.SetMaxArmor( 0 )
-        self.flaglist[self.ft_flagindexbytoken( token )].age_item( 3, health_coefficient )
         self.ft_teambalancebars()
         self.ft_showteamflags()
 
@@ -660,13 +661,13 @@ class LivingDaylights( GEScenario ):
             GEMPGameRules.GetRadar().AddRadarContact( token, GEGlobal.RADAR_TYPE_TOKEN, True, "", self.COLOR_WARM )
             GEMPGameRules.GetRadar().SetupObjective( token, GEGlobal.TEAM_NONE, "!%s" % self.TokenClass, "#GES_GP_LD_OBJ_TAKE", GEUtil.CColor( 220, 220, 220, 200 ) )
             GEMPGameRules.GetRadar().DropRadarContact( player )
+            GEMPGameRules.GetRadar().ClearObjective( player )
             self.ft_disassociate( token, False )
         else:
             GEMPGameRules.GetTokenMgr().RemoveTokenEnt( token )
 
         self.ft_teambalancebars()
         self.ft_showteamflags()
-        token.SetSkin( 0 )
 
     def OnTokenRemoved( self, token ):
         self.ft_disassociate( token, True )

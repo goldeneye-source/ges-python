@@ -22,7 +22,7 @@ import GEGlobal as Glb
 
 USING_API = Glb.API_VERSION_1_1_0
 
-class bot_arsenal( bot_deathmatch ):
+class bot_investmentlosses( bot_deathmatch ):
     def GatherConditions( self ):
         bot_deathmatch.GatherConditions( self )
         self.ClearCondition( Cond.GES_CLOSE_TO_ARMOR )

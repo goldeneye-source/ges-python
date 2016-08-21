@@ -19,7 +19,7 @@
 import random
 
 from GEAiConst import Class, State, Capability as Cap, Disposition as D
-import GEUtil, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
+import GEUtil, GEEntity, GEPlayer, GEWeapon, GEMPGameRules as GERules, GEGlobal as Glb
 
 from . import PYBaseNPC, AiSystems
 from .Utils import Memory, Weapons
@@ -32,6 +32,11 @@ class bot_deathmatch( PYBaseNPC ):
         PYBaseNPC.__init__( self, parent )
         self._min_weap_weight = Weapons.Weight.WORST
         self._max_weap_weight = Weapons.Weight.BEST
+        self._medium_weap_weight = Weapons.Weight.MEDIUM
+
+        self.justSpawned = False
+        self.time_ignore_no_target_until = GEUtil.GetTime()
+        self.time_ignore_new_target_until = GEUtil.GetTime()
 
         # Register our custom memory callback
         self.GetSystem( AiSystems.MEMORY )._callback = self.bot_MemoryCallback
@@ -69,6 +74,10 @@ class bot_deathmatch( PYBaseNPC ):
 
         self._min_weap_weight = min_weight
         self._max_weap_weight = max_weight
+        self._medium_weap_weight = (min_weight + max_weight) / 2.0
+
+        self.ClearSchedule();
+        self.justSpawned = False
 
     def IsValidEnemy( self, enemy ):
         myteam = self.GetTeamNumber()
@@ -80,18 +89,30 @@ class bot_deathmatch( PYBaseNPC ):
     def GatherConditions( self ):
         self.ClearCondition( Cond.NO_PRIMARY_AMMO )
         self.ClearCondition( Cond.LOW_PRIMARY_AMMO )
+        self.ClearCondition( Cond.GES_LOW_AMMO )
         self.ClearCondition( Cond.GES_ENEMY_FAR )
         self.ClearCondition( Cond.GES_ENEMY_CLOSE )
         self.ClearCondition( Cond.GES_CAN_SEEK_ARMOR )
+        self.ClearCondition( Cond.GES_CAN_NOT_SEEK_ARMOR )
+        self.ClearCondition( Cond.GES_CLOSE_TO_ARMOR )
+        self.ClearCondition( Cond.GES_NO_TARGET )
+
+        if self.HasCondition( Cond.TOO_CLOSE_TO_ATTACK ):
+            self.SetCondition( Cond.CAN_RANGE_ATTACK1 )
+            self.ClearCondition( Cond.TOO_CLOSE_TO_ATTACK ) #TODO: DONT CLEAR IF CURRENT WEAPON IS EXPLOSIVE
 
         memory = self.GetSystem( AiSystems.MEMORY )
+
+        if self.GetTarget() is None:
+            if self.time_ignore_no_target_until <= GEUtil.GetTime():
+                self.SetCondition( Cond.GES_NO_TARGET )
 
         if self.GetEnemy() is not None:
             # Set condition of enemy distance
             dist_to_enemy = self.GetEnemy().GetAbsOrigin().DistTo( self.GetAbsOrigin() )
             if dist_to_enemy > 800:
                 self.SetCondition( Cond.GES_ENEMY_FAR )
-            elif dist_to_enemy < 150:
+            elif dist_to_enemy < 200:
                 self.SetCondition( Cond.GES_ENEMY_CLOSE )
 
             # Set condition of enemy "strength"
@@ -104,78 +125,231 @@ class bot_deathmatch( PYBaseNPC ):
             except:
                 pass
 
+            # Should we switch enemies?
+            if self.time_ignore_new_target_until < GEUtil.GetTime():
+                self.ClearCondition( Cond.NEW_ENEMY )
+                self.time_ignore_new_target_until = GEUtil.GetTime() + 1
+
+                seen = self.GetSeenEntities()
+
+                if self.GetEnemy() != None and not self.GetEnemy().IsAlive():
+                    self.SetEnemy(None)
+
+                closestEnemy = None
+                for ent in seen:
+                    player = GEPlayer.ToMPPlayer( ent )
+                    if player != None and player.IsAlive():
+                        if not GERules.IsTeamplay() or player.GetTeamNumber() != self.GetTeamNumber():
+                            if closestEnemy == None:
+                                closestEnemy = player
+                            elif self.GetAbsOrigin().DistTo( player.GetAbsOrigin() ) < self.GetAbsOrigin().DistTo( closestEnemy.GetAbsOrigin() ):
+                                closestEnemy = player
+
+                closestContact = None
+                contacts = [c for c in GERules.GetRadar().ListContactsNear( self.GetAbsOrigin() ) if c["type"] == Glb.RADAR_TYPE_PLAYER]
+                for contact in contacts:
+                    player = GEPlayer.ToMPPlayer( GEEntity.GetEntByUniqueId( contact["ent_handle"].GetUID() ) )
+                    if player != None and player.IsAlive():
+                        if not GERules.IsTeamplay() or player.GetTeamNumber() != self.GetTeamNumber():
+                            if closestContact == None:
+                                closestContact = player
+                            elif self.GetAbsOrigin().DistTo( player.GetAbsOrigin() ) < self.GetAbsOrigin().DistTo( closestContact.GetAbsOrigin() ):
+                                closestContact = player
+
+                if closestContact != None:
+                    if closestEnemy == None:
+                        closestEnemy = closestContact
+                    elif self.GetAbsOrigin().DistTo( closestContact.GetAbsOrigin() ) < self.GetAbsOrigin().DistTo( closestEnemy.GetAbsOrigin() ) * 0.6:
+                        closestEnemy = closestContact
+
+                newEnemy = False
+                if closestEnemy != None:
+                    if self.GetEnemy() == None \
+                        or self.GetAbsOrigin().DistTo( closestEnemy.GetAbsOrigin() ) < self.GetAbsOrigin().DistTo( self.GetEnemy().GetAbsOrigin() ) * 0.8:
+                        self.SetEnemy( closestEnemy )
+                        self.time_ignore_new_target_until = GEUtil.GetTime() + 5
+                        newEnemy = True
+                
+                self.ClearCondition( Cond.SEE_ENEMY )
+                if self.GetEnemy() != None and self.GetEnemy() in seen:
+                    self.SetCondition( Cond.SEE_ENEMY )
+                    if newEnemy:
+                        self.SetCondition( Cond.NEW_ENEMY )
+
         # Ammo Checks
         currWeap = self.GetActiveWeapon()
         assert isinstance( currWeap, GEWeapon.CGEWeapon )
         if currWeap and not currWeap.IsMeleeWeapon() and currWeap.GetWeaponId() != Glb.WEAPON_MOONRAKER:
+
+            if ( currWeap.GetMaxClip() > 0 and currWeap.GetAmmoCount() < ( currWeap.GetMaxClip() * 2 ) ) \
+                or currWeap.GetAmmoCount() <= currWeap.GetMaxAmmoCount() / 4.0:
+                self.SetCondition( Cond.GES_LOW_AMMO )
+
             if currWeap.GetAmmoCount() <= currWeap.GetMaxAmmoCount() / 100:
                 # We have very little ammo left for this weapon
                 self.SetCondition( Cond.NO_PRIMARY_AMMO )
-            elif currWeap.GetClip() < ( currWeap.GetMaxClip() / 8.0 ):
+            elif currWeap.GetMaxClip() > 0 and currWeap.GetClip() < ( currWeap.GetMaxClip() / 8.0 ):
                 # We are running out of our clip
                 self.SetCondition( Cond.LOW_PRIMARY_AMMO )
 
+        if currWeap and currWeap.GetWeight() < self._medium_weap_weight:
+            self.SetCondition( Cond.LOW_WEAPON_WEIGHT )
+
         # Armor checks
-        armor_mem = memory.FindMemoriesByType( Memory.TYPE_ARMOR )
-        if len( armor_mem ) > 0:
-            self.SetCondition( Cond.GES_CAN_SEEK_ARMOR )
-            for m in armor_mem:
-                if self.GetAbsOrigin().DistTo( m.location ) < 1024:
+        from GEGamePlay import GetScenario
+        from GEGamePlay import CBaseScenario
+        armorvests = GetScenario().itemTracker.armorvests
+        if len(armorvests) > 0:
+            if self.GetArmor() < self.GetMaxArmor():
+                self.SetCondition( Cond.GES_CAN_SEEK_ARMOR )
+            else:
+                self.SetCondition( Cond.GES_CAN_NOT_SEEK_ARMOR )
+
+            # find close armor
+            for armor in armorvests:
+                if self.GetAbsOrigin().DistTo( armor.GetAbsOrigin() ) < 512:
                     self.SetCondition( Cond.GES_CLOSE_TO_ARMOR )
                     break
+        else:
+            self.SetCondition( Cond.GES_CAN_NOT_SEEK_ARMOR )
+
+    def TranslateSchedule( self, schedule ):
+        if schedule == Sched.COMBAT_FACE:
+            return Sched.BOT_COMBAT_FACE
+        elif schedule == Sched.RANGE_ATTACK1:
+            return Sched.BOT_RANGE_ATTACK1
+        else:
+            return Sched.NO_SELECTION
 
     def SelectSchedule( self ):
+
         # Run away from explosions!
         if self.HasCondition( Cond.HEAR_DANGER ):
             return Sched.TAKE_COVER_FROM_BEST_SOUND
 
-        # Basic advanced action probability (40% chance)
-        action_prob = 0.4
-        dice_roll = random.random()
+        # Run away from enemies / keep them at a distance
+        if self.HasCondition( Cond.SEE_ENEMY ) \
+            and not self.HasCondition( Cond.CAN_MELEE_ATTACK1 ) \
+            and (self.HasCondition( Cond.TOO_CLOSE_TO_ATTACK ) or self.HasCondition( Cond.GES_ENEMY_CLOSE )):
+            return Sched.RUN_FROM_ENEMY_FALLBACK
+
+        # Take cover from enemies when we're hurt or they're dangerous
+        if self.HasCondition( Cond.SEE_ENEMY ) \
+            and not self.HasCondition( Cond.CAN_MELEE_ATTACK1 ) \
+            and random.random() < 0.2:
+
+            if self.HasCondition( Cond.HEAVY_DAMAGE ) \
+                or self.HasCondition( Cond.LIGHT_DAMAGE ) \
+                or self.HasCondition( Cond.HEAR_BULLET_IMPACT ):
+                return Sched.BOT_TAKE_COVER_FROM_ENEMY
+
+            if self.HasCondition( Cond.GES_ENEMY_CLOSE ) \
+                or self.HasCondition( Cond.GES_ENEMY_DANGEROUS ):
+                return Sched.BOT_TAKE_COVER_FROM_ENEMY
+
+        # we need to clear this because we haven't set a target yet
+        # and NO TARGET interrupts
+        self.time_ignore_no_target_until = GEUtil.GetTime() + 0.5
+        self.ClearCondition( Cond.GES_NO_TARGET )
+        self.SetTarget( None )
+
+        # If we have a melee weapon out, seek out a better weapon immediately and don't get distracted
+        if self.HasCondition( Cond.CAN_MELEE_ATTACK1 ) \
+            and self.HasCondition( Cond.BETTER_WEAPON_AVAILABLE ):
+            return Sched.BOT_SEEK_WEAPON_DETERMINED
+
+        # If we have a very weak weapon, go grab a better one as soon as you can (and don't get distracted)
+        if self.HasCondition( Cond.GES_CLOSE_TO_WEAPON ) \
+            and self.HasCondition( Cond.BETTER_WEAPON_AVAILABLE ) \
+            and self.HasCondition( Cond.LOW_WEAPON_WEIGHT ):
+            return Sched.BOT_SEEK_WEAPON_DETERMINED
+
+        # If we're near armor and have the chance to grab it, do so (and don't get distracted)
+        if self.HasCondition( Cond.GES_CLOSE_TO_ARMOR ) \
+            and self.HasCondition( Cond.GES_CAN_SEEK_ARMOR ) \
+            and not self.HasCondition( Cond.GES_CAN_NOT_SEEK_ARMOR ) \
+            and (not self.HasCondition( Cond.SEE_ENEMY ) or self.GetHealth() + self.GetArmor() < ( self.GetMaxHealth() + self.GetMaxArmor() ) / 3.0 ):
+            return Sched.BOT_SEEK_ARMOR_DETERMINED
+
+        # If we have a very weak weapon, grab a better one (but you can be distracted because you're not close)
+        if not self.HasCondition( Cond.SEE_ENEMY ) \
+            and self.HasCondition( Cond.LOW_WEAPON_WEIGHT ) \
+            and self.HasCondition( Cond.BETTER_WEAPON_AVAILABLE ) \
+            and not self.HasCondition( Cond.HEAR_DANGER) \
+            and not self.HasCondition( Cond.HEAVY_DAMAGE ):
+            return Sched.BOT_SEEK_WEAPON
+
+        # BROKEN FOR NOW I want to set state...
+        #if self.HasCondition( Cond.GES_ENEMY_FAR ) \
+            #and not self.HasCondition( Cond.SEE_ENEMY ) \
+            #and self.GetState() == State.COMBAT:
+            #self.SetState( State.ALERT )
 
         if self.GetState() == State.COMBAT:
-            if self.HasCondition( Cond.GES_ENEMY_FAR ):
-                action_prob = 0.6
 
             # Low health condition, attempt to find armor or run away
             if self.GetHealth() <= ( self.GetMaxHealth() / 2.0 ) and self.GetArmor() < ( self.GetMaxArmor() / 2.0 ):
-                if self.GetHealth() <= 20 or self.HasCondition( Cond.GES_CLOSE_TO_ARMOR ):
-                    action_prob = 0.8
-
-                if self.HasCondition( Cond.GES_CAN_SEEK_ARMOR ) and dice_roll < action_prob:
+                # grab armor if the armor is close and the enemy is far
+                if self.GetArmor() < self.GetMaxArmor() \
+                    and self.HasCondition( Cond.GES_CAN_SEEK_ARMOR ) \
+                    and not self.HasCondition( Cond.GES_CAN_NOT_SEEK_ARMOR ) \
+                    and (self.HasCondition( Cond.GES_ENEMY_FAR ) or self.HasCondition( Cond.GES_CLOSE_TO_ARMOR )):
                     return Sched.BOT_SEEK_ARMOR
-                elif self.GetHealth() <= 20 and self.HasCondition( Cond.GES_ENEMY_DANGEROUS ):
-                    return Sched.RUN_FROM_ENEMY
 
-            if not self.HasCondition( Cond.GES_ENEMY_CLOSE ) and dice_roll < action_prob:
-                return Sched.BOT_ENGAGE_ENEMY
-            elif ( self.HasCondition( Cond.GES_ENEMY_FAR ) or self.HasCondition( Cond.TOO_FAR_TO_ATTACK ) ) \
-                    and not self.HasCondition( Cond.GES_ENEMY_DANGEROUS ) and dice_roll < action_prob:
-                return Sched.CHASE_ENEMY
+                # run away if we see a dangerous enemy
+                elif self.HasCondition( Cond.GES_ENEMY_DANGEROUS ) \
+                    and self.HasCondition( Cond.SEE_ENEMY ) \
+                    and self.HasCondition( Cond.GES_ENEMY_CLOSE ):
+                    return Sched.RUN_FROM_ENEMY_FALLBACK
+
+            # See a better weapon? grab it
+            if not self.HasCondition( Cond.SEE_ENEMY ) \
+                and self.HasCondition( Cond.GES_CLOSE_TO_WEAPON ) \
+                and self.HasCondition( Cond.BETTER_WEAPON_AVAILABLE ) \
+                and not self.HasCondition( Cond.HEAR_DANGER) \
+                and not self.HasCondition( Cond.HEAVY_DAMAGE ):
+                return Sched.BOT_SEEK_WEAPON
+
+            # Seek ammo if we are almost out
+            if self.HasCondition( Cond.GES_LOW_AMMO ) \
+                and self.HasCondition( Cond.GES_AMMO_AVAILABLE ):
+                return Sched.BOT_SEEK_AMMO_DETERMINED
 
             # Let the base AI handle combat situations
             return Sched.NO_SELECTION
         else:
-            # Always seek ammo if we are almost out
-            if self.HasCondition( Cond.NO_PRIMARY_AMMO ):
-                return Sched.BOT_SEEK_AMMO
 
-            # Need Armor?
-            if self.GetArmor() < ( self.GetMaxArmor() * 0.8 ) and self.HasCondition( Cond.GES_CAN_SEEK_ARMOR ):
-                if self.GetHealth() <= 20 or self.HasCondition( Cond.GES_CLOSE_TO_ARMOR ):
-                    action_prob = 0.85
-                if dice_roll < action_prob:
-                    return Sched.BOT_SEEK_ARMOR
+            # Seek ammo if we are almost out
+            if self.HasCondition( Cond.GES_LOW_AMMO ) \
+                and self.HasCondition( Cond.GES_AMMO_AVAILABLE ):
+                return Sched.BOT_SEEK_AMMO_DETERMINED
 
-            # See a better weapon?
-            if self.HasCondition( Cond.BETTER_WEAPON_AVAILABLE ):
-                if self.HasCondition( Cond.GES_CLOSE_TO_WEAPON ):
-                    action_prob = 0.75
-                if dice_roll < action_prob:
-                    return Sched.BOT_SEEK_WEAPON
+            # Seek armor if we need it
+            if self.GetArmor() < self.GetMaxArmor() \
+                and self.HasCondition( Cond.GES_CAN_SEEK_ARMOR ) \
+                and not self.HasCondition( Cond.GES_CAN_NOT_SEEK_ARMOR ) \
+                and ( self.GetHealth() <= 50 or self.HasCondition( Cond.GES_CLOSE_TO_ARMOR ) ):
+                return Sched.BOT_SEEK_ARMOR
 
-            # Our default is to find an enemy which falls back to patrolling
-            return Sched.BOT_SEEK_ENEMY
+            # Grab a better weapon if we don't see an enemy
+            if not self.HasCondition( Cond.SEE_ENEMY ) \
+                and self.HasCondition( Cond.BETTER_WEAPON_AVAILABLE ) \
+                and not self.HasCondition( Cond.HEAR_DANGER) \
+                and not self.HasCondition( Cond.HEAVY_DAMAGE ):
+                return Sched.BOT_SEEK_WEAPON
+
+        hasEnemyOnRadar = len( [c for c in GERules.GetRadar().ListContactsNear( self.GetAbsOrigin() ) if c["type"] == Glb.RADAR_TYPE_PLAYER] ) > 0
+        if hasEnemyOnRadar:
+            if self.HasCondition( Cond.SEE_ENEMY ):
+                return Sched.BOT_ENGAGE_ENEMY
+            elif self.HasCondition( Cond.GES_CLOSE_TO_WEAPON ):
+                 # BOT_SEEK_ENEMY is interrupted when we're close to a weapon, so we would rather grab it
+                return Sched.BOT_SEEK_WEAPON
+            else:
+                return Sched.BOT_SEEK_ENEMY
+        else:
+            # We don't see any enemies, walk around at random
+            return Sched.BOT_PATROL
 
     def ShouldInterruptSchedule( self, schedule ):
         # This is for future expansion pack! ;-)
