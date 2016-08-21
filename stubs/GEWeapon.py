@@ -1,4 +1,4 @@
-################ copyright 2005-2013 team goldeneye: source #################
+################ copyright 2005-2016 team goldeneye: source #################
 #
 # this file is part of goldeneye: source's python library.
 #

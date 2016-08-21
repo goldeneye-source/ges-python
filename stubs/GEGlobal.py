@@ -1,4 +1,4 @@
-################ Copyright 2005-2013 Team GoldenEye: Source #################
+################ Copyright 2005-2016 Team GoldenEye: Source #################
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
@@ -20,6 +20,7 @@
 API_VERSION_1_0_0 = str
 API_VERSION_1_1_0 = str
 API_VERSION_1_1_1 = str
+API_VERSION_1_2_0 = str
 
 # Current API version (INTERNAL USE ONLY)
 API_AI_VERSION = str
@@ -39,6 +40,12 @@ class EventHooks:
     GP_PLAYERTEAM = int
     GP_ROUNDBEGIN = int
     GP_ROUNDEND = int
+    GP_WEAPONSPAWNED = int
+    GP_WEAPONREMOVED = int
+    GP_ARMORSPAWNED = int
+    GP_ARMORREMOVED = int
+    GP_AMMOSPAWNED = int
+    GP_AMMOREMOVED = int
 
     AI_ONSPAWN = int
     AI_ONLOOKED = int

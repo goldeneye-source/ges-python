@@ -1,4 +1,4 @@
-################ Copyright 2005-2013 Team GoldenEye: Source #################
+################ Copyright 2005-2016 Team GoldenEye: Source #################
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
@@ -70,6 +70,30 @@ def DisableAmmoSpawns():
 def DisableArmorSpawns():
     '''Disables all armor spawners on the map.'''
 
+def StagnateArmorSpawns():
+    '''Prevents new armor from being spawned but keeps current armor on the ground.'''
+
+def EnableArmorSpawns():
+    '''Enables all armor spawners on the map.'''
+
+def EnableInfiniteAmmo():
+    '''Enables infinite ammo for all players.'''
+
+def DisableInfiniteAmmo():
+    '''Disables infinite ammo for all players.'''
+
+def EnableSuperfluousAreas():
+    '''Enables superfluous areas in the map like the bunker_classic surface area.'''
+
+def DisableSuperfluousAreas():
+    '''Disables superfluous areas in the map like the bunker_classic surface area.'''
+
+def EnableStandardScoring():
+    '''Enables the normal scoreboard score display behavior.'''
+
+def EnableTimeBasedScoring():
+    '''Enables the scoreboard's time score display behavior, in which each point is equal to a second.'''
+
 def GetWeaponInSlot( slot ):
     '''Get the weapon id in the specified loadout slot'''
     return int
@@ -102,6 +126,20 @@ def GetRoundTimeLeft():
     '''Get the remaining time in the current round.'''
     return float
 
+def SetRoundTimeLeft( newtime, announce=False ):
+    '''Set the -remaining- time in the current round.  Does not affect future rounds.'''
+    
+def AddToRoundTimeLeft( newtime, announce=False ):
+    '''Add to the remaining time in the current round.  Does not affect future rounds.'''
+
+def SetSpawnInvulnTime( duration, canbreak ):
+    '''
+    Set the spawn invuln parameters
+
+    duration -- How long after spawn before a player can be hurt
+    canbreak -- Can players loose spawn invuln by shooting?  Should be no for teamspawns and yes for everything else.
+    '''
+
 def IsIntermission():
     '''Is the game in an intermission?'''
     return bool
@@ -109,6 +147,14 @@ def IsIntermission():
 def IsGameOver():
     '''Are we in the final intermission before map change?'''
     return bool
+
+def GetMapMaxPlayers():
+    '''Get the max amount of players before the map is no longer considered for random selection'''
+    return int
+
+def GetMapMinPlayers():
+    '''Get the minimum amount of players before the map is no longer considered for random selection'''
+    return int
 
 def IsTeamplay():
     '''Is teamplay active?'''

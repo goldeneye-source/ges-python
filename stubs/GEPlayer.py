@@ -1,4 +1,4 @@
-################ Copyright 2005-2013 Team GoldenEye: Source #################
+################ Copyright 2005-2016 Team GoldenEye: Source #################
 #
 # This file is part of GoldenEye: Source's Python Library.
 #
@@ -180,6 +180,35 @@ class CGEPlayer( CBaseCombatCharacter ):
 
     def StripAllWeapons( self ):
         '''Take all weapons and ammo from the player.'''
+
+    def SetHat( self, hat, canshoot ):
+        '''
+        Set and respawn the player's hat
+        
+        hat - model path to the hat model
+        canshoot - can the hat be shot off?
+        '''
+        pass
+
+    def KnockOffHat( self, remove=False ):
+        '''
+        Knock off the player's hat
+        
+        remove - delete the hat instead of just knocking it off
+        '''
+        pass
+
+    def MakeInvisible( self ):
+        '''
+        Make the player invisible
+        '''
+        pass
+
+    def MakeVisible( self ):
+        '''
+        Make the player visible
+        '''
+        pass
 
     def GetAimDirection( self ):
         '''
