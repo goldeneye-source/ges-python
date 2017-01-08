@@ -283,7 +283,7 @@ class Arsenal( GEScenario ):
             self.pltracker[player][TR_LEVELKILLS] = 0
         elif (kills < 0):
             self.ar_IncrementLevel( player, -1 )
-            self.pltracker[player][TR_LEVELKILLS] = max(self.KillsPerLevel + kills, 0) # Kills is negative here so we're using it to correct previous level killcount.      
+            self.pltracker[player][TR_LEVELKILLS] = max(self.pltracker[player][TR_LEVELKILLS] + kills, 0) # Kills is negative here so we're using it to correct previous level killcount.
         else:
             self.pltracker[player][TR_LEVELKILLS] = kills # No level advancement, just complete the request as asked.
             msg = _( "#GES_GP_GUNGAME_KILLS", str(self.KillsPerLevel - kills) ) # We didn't increment a level which would have caused a level advancement message.
